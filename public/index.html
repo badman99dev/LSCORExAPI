@@ -1,0 +1,695 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>⚡ LSCORExAPI — Live Cricket & Sports Scores API</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500;700&family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+  <style>
+    :root {
+      --bg: #090d16;
+      --card-bg: #111827;
+      --card-border: #1f2937;
+      --accent: #10b981;
+      --accent-glow: rgba(16, 185, 129, 0.2);
+      --live-red: #ef4444;
+      --text: #f3f4f6;
+      --text-muted: #9ca3af;
+      --mono: 'JetBrains Mono', monospace;
+      --sans: 'Plus Jakarta Sans', sans-serif;
+    }
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body {
+      background: var(--bg);
+      color: var(--text);
+      font-family: var(--sans);
+      min-height: 100vh;
+      line-height: 1.5;
+      padding: 0 0 60px;
+    }
+    header {
+      background: rgba(17, 24, 39, 0.8);
+      backdrop-filter: blur(12px);
+      border-bottom: 1px solid var(--card-border);
+      position: sticky;
+      top: 0;
+      z-index: 50;
+      padding: 16px 24px;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+    }
+    .brand {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      font-weight: 800;
+      font-size: 1.25rem;
+      letter-spacing: -0.02em;
+    }
+    .brand-badge {
+      background: #10b98122;
+      color: var(--accent);
+      border: 1px solid #10b98144;
+      font-size: 0.75rem;
+      padding: 2px 8px;
+      border-radius: 9999px;
+      font-weight: 600;
+    }
+    .container {
+      max-width: 1200px;
+      margin: 0 auto;
+      padding: 32px 24px;
+    }
+    .hero {
+      margin-bottom: 36px;
+    }
+    .hero h1 {
+      font-size: 2.25rem;
+      font-weight: 800;
+      margin-bottom: 8px;
+      letter-spacing: -0.03em;
+    }
+    .hero p {
+      color: var(--text-muted);
+      font-size: 1.05rem;
+      max-width: 700px;
+    }
+    .feature-tags {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 8px;
+      margin-top: 14px;
+    }
+    .tag {
+      background: #1f2937;
+      color: #d1d5db;
+      font-size: 0.8rem;
+      padding: 4px 10px;
+      border-radius: 6px;
+      font-weight: 500;
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+    }
+    .grid-2 {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 24px;
+      margin-bottom: 36px;
+    }
+    @media (max-width: 900px) {
+      .grid-2 { grid-template-columns: 1fr; }
+    }
+    .card {
+      background: var(--card-bg);
+      border: 1px solid var(--card-border);
+      border-radius: 12px;
+      padding: 20px;
+    }
+    .card-title {
+      font-size: 1.1rem;
+      font-weight: 700;
+      margin-bottom: 16px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+    }
+    .live-dot {
+      width: 8px;
+      height: 8px;
+      background: var(--live-red);
+      border-radius: 50%;
+      display: inline-block;
+      animation: pulse 1.5s infinite;
+    }
+    @keyframes pulse {
+      0%, 100% { opacity: 1; transform: scale(1); }
+      50% { opacity: 0.4; transform: scale(1.2); }
+    }
+    .matches-list {
+      display: flex;
+      flex-direction: column;
+      gap: 12px;
+      max-height: 480px;
+      overflow-y: auto;
+    }
+    .match-item {
+      background: #1e293b55;
+      border: 1px solid #334155;
+      border-radius: 8px;
+      padding: 12px 14px;
+      cursor: pointer;
+      transition: all 0.2s;
+    }
+    .match-item:hover, .match-item.selected {
+      border-color: var(--accent);
+      background: #10b9810a;
+    }
+    .match-header {
+      display: flex;
+      justify-content: space-between;
+      font-size: 0.75rem;
+      color: var(--text-muted);
+      margin-bottom: 8px;
+    }
+    .teams-row {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-bottom: 6px;
+    }
+    .team-info {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      font-weight: 600;
+      font-size: 0.95rem;
+    }
+    .team-logo {
+      width: 26px;
+      height: 26px;
+      border-radius: 50%;
+      background: #374151;
+      object-fit: cover;
+    }
+    .team-score {
+      font-family: var(--mono);
+      font-weight: 700;
+      font-size: 1rem;
+      color: #fbbf24;
+    }
+    .match-footer {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      font-size: 0.78rem;
+      color: var(--text-muted);
+      border-top: 1px dashed #334155;
+      padding-top: 6px;
+      margin-top: 6px;
+    }
+    .btn {
+      background: var(--accent);
+      color: #064e3b;
+      font-weight: 700;
+      border: none;
+      padding: 8px 14px;
+      border-radius: 6px;
+      cursor: pointer;
+      font-size: 0.85rem;
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      transition: 0.2s;
+    }
+    .btn:hover {
+      background: #34d399;
+    }
+    .btn-outline {
+      background: transparent;
+      color: var(--text);
+      border: 1px solid var(--card-border);
+    }
+    .btn-outline:hover {
+      background: #1f2937;
+    }
+    .terminal {
+      background: #030712;
+      border: 1px solid #1f2937;
+      border-radius: 8px;
+      padding: 14px;
+      font-family: var(--mono);
+      font-size: 0.78rem;
+      max-height: 480px;
+      overflow-y: auto;
+      color: #a7f3d0;
+    }
+    .terminal-line {
+      margin-bottom: 6px;
+      word-break: break-all;
+    }
+    .time-badge {
+      color: #6ee7b7;
+      margin-right: 6px;
+    }
+    .event-type {
+      background: #065f46;
+      color: #ecfdf5;
+      padding: 1px 6px;
+      border-radius: 4px;
+      font-size: 0.7rem;
+      margin-right: 6px;
+    }
+    .player-card {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      background: #1f2937;
+      padding: 10px 14px;
+      border-radius: 8px;
+      margin-bottom: 8px;
+    }
+    .player-head {
+      width: 44px;
+      height: 44px;
+      border-radius: 50%;
+      background: #374151;
+      object-fit: cover;
+      border: 2px solid #4b5563;
+    }
+    .jersey-thumb {
+      width: 32px;
+      height: 32px;
+      object-fit: contain;
+    }
+    .endpoints-table {
+      width: 100%;
+      border-collapse: collapse;
+      margin-top: 16px;
+    }
+    .endpoints-table th, .endpoints-table td {
+      padding: 12px 14px;
+      text-align: left;
+      border-bottom: 1px solid var(--card-border);
+      font-size: 0.85rem;
+    }
+    .endpoints-table th {
+      color: var(--text-muted);
+      font-weight: 600;
+    }
+    .method-badge {
+      font-family: var(--mono);
+      font-weight: 700;
+      font-size: 0.75rem;
+      padding: 2px 6px;
+      border-radius: 4px;
+      background: #0284c7;
+      color: #fff;
+    }
+    .method-sse {
+      background: #8b5cf6;
+    }
+  </style>
+</head>
+<body>
+
+  <header>
+    <div class="brand">
+      <span>⚡ LSCORExAPI</span>
+      <span class="brand-badge">v1.0.0</span>
+    </div>
+    <div style="display:flex; gap:12px;">
+      <a href="/matches" target="_blank" class="btn btn-outline">Raw JSON</a>
+      <a href="https://github.com/badman99dev/LSCORExAPI" target="_blank" class="btn">GitHub Repo ↗</a>
+    </div>
+  </header>
+
+  <div class="container">
+    <div class="hero">
+      <h1>Live Cricket & Sports Scores Engine</h1>
+      <p>High-performance, deduplicated SSE live streaming & REST API reverse-engineered from CREX. Features instant snapshots, ball-by-ball diff updates, Playing XI, player headshots, and team jerseys.</p>
+      <div class="feature-tags">
+        <span class="tag">📡 Infinite SSE Streams (No Timeout)</span>
+        <span class="tag">⚡ Single Upstream Broadcaster</span>
+        <span class="tag">🔄 Snapshot + Delta Diffs</span>
+        <span class="tag">👕 Official Team Jerseys</span>
+        <span class="tag">👤 HD Player Headshots</span>
+        <span class="tag">🏏 Ball-by-Ball Feed</span>
+      </div>
+    </div>
+
+    <!-- Live Console Grid -->
+    <div class="grid-2">
+      <!-- Matches Column -->
+      <div class="card">
+        <div class="card-title">
+          <span>Active Matches</span>
+          <button class="btn btn-outline" onclick="loadMatches()" style="padding:4px 8px; font-size:0.75rem;">↻ Refresh</button>
+        </div>
+        <div id="matchesContainer" class="matches-list">
+          <div style="color:var(--text-muted); font-size:0.85rem;">Loading live matches...</div>
+        </div>
+      </div>
+
+      <!-- Realtime SSE Stream Column -->
+      <div class="card">
+        <div class="card-title">
+          <div style="display:flex; align-items:center; gap:8px;">
+            <span class="live-dot"></span>
+            <span>Real-time SSE Stream</span>
+          </div>
+          <span id="sseStatus" style="font-size:0.75rem; color:#9ca3af; font-family:var(--mono);">Idle</span>
+        </div>
+        <div id="terminal" class="terminal">
+          <div class="terminal-line" style="color:#9ca3af;">Select a match on the left to start live SSE stream.</div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Match Details & Squad Inspector -->
+    <div id="matchDetailSection" class="card" style="display:none; margin-bottom:36px;">
+      <div class="card-title">
+        <span id="detailTitle">Match Overview</span>
+        <div style="display:flex; gap:8px;">
+          <button class="btn btn-outline" id="loadSquadBtn" onclick="toggleSquad()">👕 View Squad / Playing XI</button>
+        </div>
+      </div>
+      <div id="detailContent"></div>
+      <div id="squadContainer" style="display:none; margin-top:20px; border-top:1px solid #1f2937; padding-top:20px;"></div>
+    </div>
+
+    <!-- API Endpoints Reference -->
+    <div class="card">
+      <div class="card-title">
+        <span>REST & Streaming Endpoints</span>
+      </div>
+      <table class="endpoints-table">
+        <thead>
+          <tr>
+            <th>Method</th>
+            <th>Route</th>
+            <th>Description</th>
+            <th>Action</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td><span class="method-badge method-sse">SSE</span></td>
+            <td><code>/events?matchId={id}</code></td>
+            <td>Infinite SSE stream. Sends initial snapshot then live diffs on every ball.</td>
+            <td><a href="/events?matchId=*" target="_blank" class="btn btn-outline" style="padding:2px 8px; font-size:0.75rem;">Stream All</a></td>
+          </tr>
+          <tr>
+            <td><span class="method-badge method-sse">SSE</span></td>
+            <td><code>/matches/:id/stream</code></td>
+            <td>Direct SSE stream for a specific match with auto single-worker fan-out.</td>
+            <td><span style="color:#6b7280; font-size:0.75rem;">Per Match</span></td>
+          </tr>
+          <tr>
+            <td><span class="method-badge">GET</span></td>
+            <td><code>/matches</code></td>
+            <td>List all active and recent matches with live scores and logos.</td>
+            <td><a href="/matches" target="_blank" class="btn btn-outline" style="padding:2px 8px; font-size:0.75rem;">Open</a></td>
+          </tr>
+          <tr>
+            <td><span class="method-badge">GET</span></td>
+            <td><code>/matches/live</code></td>
+            <td>Filtered list of currently live matches.</td>
+            <td><a href="/matches/live" target="_blank" class="btn btn-outline" style="padding:2px 8px; font-size:0.75rem;">Open</a></td>
+          </tr>
+          <tr>
+            <td><span class="method-badge">GET</span></td>
+            <td><code>/matches/:id</code></td>
+            <td>Match details, striker/bowler stats with headshot images and jerseys.</td>
+            <td><span style="color:#6b7280; font-size:0.75rem;">Detail</span></td>
+          </tr>
+          <tr>
+            <td><span class="method-badge">GET</span></td>
+            <td><code>/matches/:id/squad</code></td>
+            <td>Both teams' Playing XI and full squad with player photos and jerseys.</td>
+            <td><span style="color:#6b7280; font-size:0.75rem;">Squad</span></td>
+          </tr>
+          <tr>
+            <td><span class="method-badge">GET</span></td>
+            <td><code>/matches/:id/commentary</code></td>
+            <td>Ball-by-ball commentary, shot types, wagons, and fall of wickets.</td>
+            <td><span style="color:#6b7280; font-size:0.75rem;">Feed</span></td>
+          </tr>
+          <tr>
+            <td><span class="method-badge">GET</span></td>
+            <td><code>/matches/:id/scorecard</code></td>
+            <td>Structured scorecard breakdown for both innings.</td>
+            <td><span style="color:#6b7280; font-size:0.75rem;">Scorecard</span></td>
+          </tr>
+          <tr>
+            <td><span class="method-badge">GET</span></td>
+            <td><code>/stats</code></td>
+            <td>Broadcaster metrics: active clients, watched matches, worker pool.</td>
+            <td><a href="/stats" target="_blank" class="btn btn-outline" style="padding:2px 8px; font-size:0.75rem;">View</a></td>
+          </tr>
+          <tr>
+            <td><span class="method-badge">GET</span></td>
+            <td><code>/health</code></td>
+            <td>Uptime & server health check.</td>
+            <td><a href="/health" target="_blank" class="btn btn-outline" style="padding:2px 8px; font-size:0.75rem;">Health</a></td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+
+  </div>
+
+  <script>
+    let activeEventSource = null;
+    let selectedMatchId = null;
+
+    async function loadMatches() {
+      const container = document.getElementById('matchesContainer');
+      try {
+        const res = await fetch('/matches');
+        const json = await res.json();
+        if (!json.success || !json.matches.length) {
+          container.innerHTML = '<div style="color:#9ca3af; padding:12px;">No live matches right now.</div>';
+          return;
+        }
+
+        container.innerHTML = json.matches.map((m) => `
+          <div class="match-item ${selectedMatchId === m.id ? 'selected' : ''}" onclick="selectMatch('${m.id}')">
+            <div class="match-header">
+              <span>${m.series || 'Cricket Match'}</span>
+              <span style="color:#10b981; font-weight:600;">${m.statusText || 'LIVE'}</span>
+            </div>
+            <div class="teams-row">
+              <div class="team-info">
+                <img src="${m.teams.team1.logo || ''}" class="team-logo" onerror="this.style.display='none'">
+                <span>${m.teams.team1.name || m.teams.team1.code}</span>
+              </div>
+              <span class="team-score">${m.teams.team1.scoreRaw || '--'}</span>
+            </div>
+            <div class="teams-row">
+              <div class="team-info">
+                <img src="${m.teams.team2.logo || ''}" class="team-logo" onerror="this.style.display='none'">
+                <span>${m.teams.team2.name || m.teams.team2.code}</span>
+              </div>
+              <span class="team-score">${m.teams.team2.scoreRaw || '--'}</span>
+            </div>
+            <div class="match-footer">
+              <span>📍 ${m.venue || 'Live Stadium'}</span>
+              <span style="color:#38bdf8;">Match ID: ${m.id}</span>
+            </div>
+          </div>
+        `).join('');
+
+        if (!selectedMatchId && json.matches.length) {
+          selectMatch(json.matches[0].id);
+        }
+      } catch (e) {
+        container.innerHTML = '<div style="color:#ef4444; padding:12px;">Error loading matches: ' + e.message + '</div>';
+      }
+    }
+
+    function selectMatch(id) {
+      selectedMatchId = id;
+      document.querySelectorAll('.match-item').forEach(el => el.classList.remove('selected'));
+      loadMatchDetail(id);
+      connectSSE(id);
+    }
+
+    function logTerminal(type, text) {
+      const term = document.getElementById('terminal');
+      const time = new Date().toTimeString().split(' ')[0];
+      const div = document.createElement('div');
+      div.className = 'terminal-line';
+      div.innerHTML = `<span class="time-badge">[${time}]</span><span class="event-type">${type}</span>${text}`;
+      term.appendChild(div);
+      term.scrollTop = term.scrollHeight;
+    }
+
+    function connectSSE(id) {
+      if (activeEventSource) {
+        activeEventSource.close();
+      }
+      const term = document.getElementById('terminal');
+      term.innerHTML = '';
+      const statusEl = document.getElementById('sseStatus');
+      statusEl.textContent = 'Connecting...';
+      statusEl.style.color = '#fbbf24';
+
+      logTerminal('CONNECT', `Opening SSE stream for match: ${id}`);
+      activeEventSource = new EventSource(`/events?matchId=${id}`);
+
+      activeEventSource.onopen = () => {
+        statusEl.textContent = `Streaming (${id})`;
+        statusEl.style.color = '#10b981';
+        logTerminal('OPEN', 'SSE Stream established. Waiting for packets...');
+      };
+
+      activeEventSource.addEventListener('snapshot', (e) => {
+        const payload = JSON.parse(e.data);
+        logTerminal('SNAPSHOT', `Initial snapshot received (${JSON.stringify(payload).length} bytes)`);
+        if (payload.match) renderRichMatch(payload.match);
+      });
+
+      activeEventSource.addEventListener('update', (e) => {
+        const payload = JSON.parse(e.data);
+        const changeStr = (payload.changes || []).map(c => `${c.path}: ${c.from} ➔ ${c.to}`).join(', ');
+        logTerminal('UPDATE', `⚡ Live Delta: ${changeStr || 'Match state refreshed'}`);
+        if (payload.match) renderRichMatch(payload.match);
+      });
+
+      activeEventSource.onerror = () => {
+        statusEl.textContent = 'Reconnecting...';
+        statusEl.style.color = '#ef4444';
+      };
+    }
+
+    async function loadMatchDetail(id) {
+      const section = document.getElementById('matchDetailSection');
+      section.style.display = 'block';
+      try {
+        const res = await fetch(`/matches/${id}`);
+        const data = await res.json();
+        if (data.success && data.match) {
+          renderRichMatch(data.match);
+        }
+      } catch (_) {}
+    }
+
+    function renderRichMatch(match) {
+      const content = document.getElementById('detailContent');
+      const r = match.rich || {};
+      const striker = r.striker;
+      const bowler = r.bowler;
+
+      let battersHtml = '';
+      if (striker) {
+        battersHtml = `
+          <div style="flex:1;">
+            <div style="font-size:0.75rem; color:#9ca3af; margin-bottom:4px;">BATTERS ON CREASE</div>
+            <div class="player-card">
+              <img src="${striker.head || ''}" class="player-head" onerror="this.style.display='none'">
+              <img src="${striker.jersey || ''}" class="jersey-thumb" onerror="this.style.display='none'">
+              <div>
+                <div style="font-weight:700;">${striker.name || 'Striker'} *</div>
+                <div style="font-family:var(--mono); color:#fbbf24; font-size:0.9rem;">${striker.runs ?? 0} runs (${striker.balls ?? 0}b) • 4s: ${striker.fours ?? 0} • 6s: ${striker.sixes ?? 0}</div>
+              </div>
+            </div>
+            ${r.nonStriker ? `
+            <div class="player-card">
+              <img src="${r.nonStriker.head || ''}" class="player-head" onerror="this.style.display='none'">
+              <img src="${r.nonStriker.jersey || ''}" class="jersey-thumb" onerror="this.style.display='none'">
+              <div>
+                <div style="font-weight:700;">${r.nonStriker.name || 'Non-Striker'}</div>
+                <div style="font-family:var(--mono); color:#fbbf24; font-size:0.9rem;">${r.nonStriker.runs ?? 0} runs (${r.nonStriker.balls ?? 0}b)</div>
+              </div>
+            </div>
+            ` : ''}
+          </div>
+        `;
+      }
+
+      let bowlerHtml = '';
+      if (bowler) {
+        bowlerHtml = `
+          <div style="flex:1;">
+            <div style="font-size:0.75rem; color:#9ca3af; margin-bottom:4px;">CURRENT BOWLER</div>
+            <div class="player-card">
+              <img src="${bowler.head || ''}" class="player-head" onerror="this.style.display='none'">
+              <img src="${bowler.jersey || ''}" class="jersey-thumb" onerror="this.style.display='none'">
+              <div>
+                <div style="font-weight:700;">${bowler.name}</div>
+                <div style="font-family:var(--mono); color:#38bdf8; font-size:0.9rem;">Overs: ${bowler.overs || '--'} • M: ${bowler.maidens ?? 0} • R: ${bowler.runs ?? 0} • W: ${bowler.wickets ?? 0} • Econ: ${bowler.economy || '--'}</div>
+              </div>
+            </div>
+            ${r.partnership ? `
+            <div style="background:#1e293b; padding:10px 14px; border-radius:8px; font-size:0.85rem; color:#d1d5db;">
+              🤝 Partnership: <strong>${r.partnership.runs}</strong> runs (${r.partnership.balls} balls)
+            </div>
+            ` : ''}
+          </div>
+        `;
+      }
+
+      content.innerHTML = `
+        <div style="display:flex; flex-wrap:wrap; gap:16px; margin-bottom:16px;">
+          ${battersHtml}
+          ${bowlerHtml}
+        </div>
+        ${r.recentBalls && r.recentBalls.length ? `
+          <div style="margin-top:12px;">
+            <div style="font-size:0.75rem; color:#9ca3af; margin-bottom:6px;">RECENT DELIVERIES (BALL FEED)</div>
+            <div style="display:flex; gap:6px; flex-wrap:wrap;">
+              ${r.recentBalls.slice(0, 12).map(b => `
+                <span class="tag" style="background:${b.text === '4' || b.text === '6' ? '#047857' : b.text === 'w' ? '#b91c1c' : '#1f2937'}; color:#fff; font-family:var(--mono);">
+                  ${b.over}: ${b.text}
+                </span>
+              `).join('')}
+            </div>
+          </div>
+        ` : ''}
+      `;
+    }
+
+    async function toggleSquad() {
+      const box = document.getElementById('squadContainer');
+      if (box.style.display === 'block') {
+        box.style.display = 'none';
+        return;
+      }
+      box.style.display = 'block';
+      box.innerHTML = '<div style="color:#9ca3af;">Loading Playing XI & Squad...</div>';
+
+      try {
+        const res = await fetch(`/matches/${selectedMatchId}/squad`);
+        const json = await res.json();
+        if (!json.success || !json.squad) {
+          box.innerHTML = '<div style="color:#ef4444;">Squad information not yet announced for this match.</div>';
+          return;
+        }
+
+        const sq = json.squad;
+        const renderTeam = (t) => `
+          <div style="flex:1; min-width:300px;">
+            <div style="display:flex; align-items:center; gap:8px; margin-bottom:12px;">
+              <img src="${t.flag || ''}" style="width:28px; height:28px; border-radius:50%;" onerror="this.style.display='none'">
+              <img src="${t.jersey || ''}" style="width:28px; height:28px; object-fit:contain;" onerror="this.style.display='none'">
+              <h3 style="font-size:1.05rem;">${t.name || t.code} (${t.playersCount} players)</h3>
+            </div>
+            <div style="display:flex; flex-direction:column; gap:6px;">
+              ${(t.players || []).map(p => `
+                <div class="player-card" style="padding:6px 10px; margin-bottom:4px;">
+                  <img src="${p.head || ''}" style="width:36px; height:36px; border-radius:50%; object-fit:cover;" onerror="this.style.display='none'">
+                  <div style="flex:1;">
+                    <div style="font-weight:600; font-size:0.85rem;">
+                      ${p.name || p.fkey}
+                      ${p.captain ? '<span style="color:#fbbf24; font-size:0.75rem;">(C)</span>' : ''}
+                      ${p.keeper ? '<span style="color:#38bdf8; font-size:0.75rem;">(WK)</span>' : ''}
+                    </div>
+                    <div style="font-size:0.75rem; color:#9ca3af;">${p.role}</div>
+                  </div>
+                  <img src="${p.jersey || ''}" style="width:24px; height:24px; object-fit:contain;" onerror="this.style.display='none'">
+                </div>
+              `).join('')}
+            </div>
+          </div>
+        `;
+
+        box.innerHTML = `
+          <h3 style="margin-bottom:14px; color:#10b981;">📋 ${sq.kind} (Playing Lineup & Squad)</h3>
+          <div style="display:flex; flex-wrap:wrap; gap:24px;">
+            ${renderTeam(sq.teams.team1)}
+            ${renderTeam(sq.teams.team2)}
+          </div>
+        `;
+      } catch (err) {
+        box.innerHTML = '<div style="color:#ef4444;">Failed to fetch squad: ' + err.message + '</div>';
+      }
+    }
+
+    loadMatches();
+  </script>
+</body>
+</html>

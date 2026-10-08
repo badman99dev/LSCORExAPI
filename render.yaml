@@ -1,0 +1,19 @@
+services:
+  - type: web
+    name: lscorexapi
+    runtime: node
+    plan: free
+    region: singapore
+    buildCommand: npm install
+    startCommand: node src/index.js
+    healthCheckPath: /health
+    autoDeploy: true
+    envVars:
+      - key: NODE_VERSION
+        value: "22"
+      - key: HOST
+        value: "0.0.0.0"
+      - key: POLL_INTERVAL_MS
+        value: "2000"
+      - key: PING_INTERVAL_MS
+        value: "15000"

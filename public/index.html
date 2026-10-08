@@ -378,9 +378,9 @@
         <tbody>
           <tr>
             <td><span class="method-badge method-sse">SSE</span></td>
-            <td><code>/events?matchId={id}</code></td>
+            <td><code>/matches/:id/stream</code></td>
             <td>Infinite SSE stream. Sends initial snapshot then live diffs on every ball.</td>
-            <td><a href="/events?matchId=*" target="_blank" class="btn btn-outline" style="padding:2px 8px; font-size:0.75rem;">Stream All</a></td>
+            <td><a href="" target="_blank" class="btn btn-outline" style="padding:2px 8px; font-size:0.75rem;">Stream All</a></td>
           </tr>
           <tr>
             <td><span class="method-badge method-sse">SSE</span></td>
@@ -519,7 +519,7 @@
       statusEl.style.color = '#fbbf24';
 
       logTerminal('CONNECT', `Opening SSE stream for match: ${id}`);
-      activeEventSource = new EventSource(`/events?matchId=${id}`);
+      activeEventSource = new EventSource(`/matches/${id}/stream`);
 
       activeEventSource.onopen = () => {
         statusEl.textContent = `Streaming (${id})`;

@@ -11,7 +11,7 @@
  */
 
 import { diffResponse } from './diff.js';
-import { getMatchDetail, getLiveMatches } from '../sources/crex.js';
+import { getMatchDetail } from '../sources/crex.js';
 
 const POLL_INTERVAL_MS = Number(process.env.POLL_INTERVAL_MS || 2000);
 const PING_INTERVAL_MS = Number(process.env.PING_INTERVAL_MS || 15000);
@@ -21,13 +21,17 @@ class MatchBroadcaster {
     this.clients = new Set();               // Set of all connected SSE client objects
     this.matchSubs = new Map();             // matchId -> Set<client>
     this.watchers = new Map();              // matchId -> { timer, isPolling, lastState }
-    this.wildcardSubs = new Set();          // clients that listen to all matches (*)
   }
 
   /**
-   * Handle incoming SSE connection
+   * Handle incoming SSE connection for a specific match
    */
-  async handleClient(req, res, matchId = '*') {
+  async handleClient(req, res, matchId) {
+    if (!matchId) {
+      res.status(400).json({ error: 'matchId is required' });
+      return;
+    }
+
     // Disable socket timeouts
     req.socket.setTimeout(0);
     req.socket.setNoDelay(true);
@@ -68,42 +72,30 @@ class MatchBroadcaster {
       client.ping();
     }, PING_INTERVAL_MS);
 
-    // Subscribe client to match
-    if (matchId === '*') {
-      this.wildcardSubs.add(client);
-      // Send snapshot of all live matches
-      getLiveMatches().then((list) => {
-        client.send('snapshot', { matches: list, timestamp: new Date().toISOString() });
-      }).catch(() => {});
-    } else {
-      if (!this.matchSubs.has(matchId)) {
-        this.matchSubs.set(matchId, new Set());
-      }
-      this.matchSubs.get(matchId).add(client);
-
-      // Start single upstream watcher for this match if not already running
-      this.startWatcher(matchId);
-
-      // Send initial snapshot immediately
-      this.sendInitialSnapshot(client, matchId);
+    // Subscribe client to specific match
+    if (!this.matchSubs.has(matchId)) {
+      this.matchSubs.set(matchId, new Set());
     }
+    this.matchSubs.get(matchId).add(client);
+
+    // Start single upstream watcher for this match if not already running
+    this.startWatcher(matchId);
+
+    // Send initial snapshot immediately
+    this.sendInitialSnapshot(client, matchId);
 
     // Clean up on disconnect
     req.on('close', () => {
       clearInterval(pingTimer);
       this.clients.delete(client);
 
-      if (matchId === '*') {
-        this.wildcardSubs.delete(client);
-      } else {
-        const subs = this.matchSubs.get(matchId);
-        if (subs) {
-          subs.delete(client);
-          // If no more clients watching this match, stop upstream poller!
-          if (subs.size === 0) {
-            this.matchSubs.delete(matchId);
-            this.stopWatcher(matchId);
-          }
+      const subs = this.matchSubs.get(matchId);
+      if (subs) {
+        subs.delete(client);
+        // If no more clients watching this match, stop upstream poller!
+        if (subs.size === 0) {
+          this.matchSubs.delete(matchId);
+          this.stopWatcher(matchId);
         }
       }
     });
@@ -193,7 +185,7 @@ class MatchBroadcaster {
   }
 
   /**
-   * Broadcast event to subscribers of matchId + wildcard listeners
+   * Broadcast event to subscribers of matchId
    */
   broadcast(matchId, event, payload) {
     const subs = this.matchSubs.get(matchId);
@@ -201,10 +193,6 @@ class MatchBroadcaster {
       for (const client of subs) {
         client.send(event, payload);
       }
-    }
-
-    for (const client of this.wildcardSubs) {
-      client.send(event, payload);
     }
   }
 
@@ -214,7 +202,6 @@ class MatchBroadcaster {
   getStats() {
     return {
       connectedClients: this.clients.size,
-      wildcardClients: this.wildcardSubs.size,
       activeWatchers: this.watchers.size,
       watchedMatches: [...this.watchers.keys()],
       subscriptions: Object.fromEntries(

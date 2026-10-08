@@ -151,13 +151,7 @@ router.get('/matches/:id/scorecard', async (req, res) => {
   }
 });
 
-// SSE Streaming Route 1: /events?matchId=<ID>
-router.get('/events', (req, res) => {
-  const matchId = req.query.matchId || '*';
-  broadcaster.handleClient(req, res, matchId);
-});
-
-// SSE Streaming Route 2: /matches/:id/stream
+// Canonical SSE Streaming Route for a specific match
 router.get('/matches/:id/stream', (req, res) => {
   const matchId = req.params.id;
   broadcaster.handleClient(req, res, matchId);

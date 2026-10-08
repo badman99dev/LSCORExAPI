@@ -21,15 +21,14 @@ Deployable on **Render** (via `render.yaml`), VPS, Docker, or any Node.js enviro
 
 | Method | Route | Description |
 |---|---|---|
-| `SSE` | `/events?matchId={id}` | Infinite SSE stream. Streams initial snapshot then live diffs on every ball. |
-| `SSE` | `/matches/{id}/stream` | Direct SSE stream for a specific match. |
+| `SSE` | `/matches/:id/stream` | Canonical infinite SSE stream for a match. Streams initial snapshot then live diffs on every ball. |
 | `GET` | `/matches` | List all active and recent matches with live scores, series, and team logos. |
 | `GET` | `/matches/live` | Filtered list of currently live matches. |
-| `GET` | `/matches/{id}` | Detailed match state, current striker & bowler with headshot photos and jerseys. |
-| `GET` | `/matches/{id}/squad` | Both teams' Playing XI and full squad with player photos and jerseys. |
-| `GET` | `/matches/{id}/playing-xi` | Playing XI alias with announcement status. |
-| `GET` | `/matches/{id}/commentary` | Ball-by-ball commentary, shot types, wagons, and fall of wickets. |
-| `GET` | `/matches/{id}/scorecard` | Structured scorecard breakdown for both innings. |
+| `GET` | `/matches/:id` | Detailed match state, current striker & bowler with headshot photos and jerseys. |
+| `GET` | `/matches/:id/squad` | Both teams' Playing XI and full squad with player photos and jerseys. |
+| `GET` | `/matches/:id/playing-xi` | Playing XI alias with announcement status. |
+| `GET` | `/matches/:id/commentary` | Ball-by-ball commentary, shot types, wagons, and fall of wickets. |
+| `GET` | `/matches/:id/scorecard` | Structured scorecard breakdown for both innings. |
 | `GET` | `/stats` | Broadcaster metrics: active SSE clients, watched matches, worker pool. |
 | `GET` | `/health` | Server uptime and health status. |
 | `GET` | `/docs` | Interactive Swagger-style documentation & real-time SSE stream tester. |
@@ -40,8 +39,8 @@ Deployable on **Render** (via `render.yaml`), VPS, Docker, or any Node.js enviro
 
 ```javascript
 // Connect to a specific match live stream
-const matchId = "ABC12"; // Match ID from /matches
-const es = new EventSource(`https://your-api.onrender.com/events?matchId=${matchId}`);
+const matchId = "1272"; // Match ID from /matches
+const es = new EventSource(`https://your-api.onrender.com/matches/${matchId}/stream`);
 
 // 1. Initial snapshot of match
 es.addEventListener('snapshot', (e) => {

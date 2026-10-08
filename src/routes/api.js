@@ -12,8 +12,31 @@ import {
   getFinishedMatches,
   getMatchDetail,
   squadFor,
+  searchCricket,
 } from "../sources/crex.js";
+import {
+  getSeriesPointsTable,
+  getSeriesSquads,
+  getSeriesMatches,
+  getTeamOverview,
+  getTeamMatches,
+} from "../sources/crexSeriesTeam.js";
 import { broadcaster } from "../core/broadcaster.js";
+import path from "path";
+import { fileURLToPath } from "url";
+
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = path.dirname(__filename);
+const publicDir = path.join(__dirname, "../../public");
+
+function shouldServeHtml(req) {
+  if (req.query.format === "json" || req.query.json === "true") return false;
+  if (req.headers["sec-fetch-dest"] === "document") return true;
+  if (req.headers.accept && req.headers.accept.includes("text/html") && !req.headers.accept.includes("application/json") && !req.xhr) {
+    return true;
+  }
+  return false;
+}
 
 export const router = express.Router();
 
@@ -256,3 +279,136 @@ const handleStream = (req, res) => {
 
 router.get("/matches/:id/stream", handleStream);
 router.get("/events/:id/stream", handleStream);
+
+// Search endpoints (Supports ?q=..., ?exp=..., POST body { exp: "..." } or { q: "..." })
+const handleSearch = async (req, res) => {
+  try {
+    const query = req.query.q || req.query.exp || req.body?.exp || req.body?.q || req.body?.query || "";
+    if (!query) {
+      if (req.path.includes("redisearch")) return res.json([]);
+      return res.json({ success: true, query: "", count: 0, results: [] });
+    }
+    const results = await searchCricket(query);
+    if (req.path.includes("redisearch")) {
+      return res.json(results);
+    }
+    res.json({
+      success: true,
+      query,
+      count: results.length,
+      results,
+    });
+  } catch (err) {
+    res.status(500).json({ success: false, error: err.message });
+  }
+};
+
+router.get("/search", handleSearch);
+router.post("/search", handleSearch);
+router.get("/api/search", handleSearch);
+router.post("/api/search", handleSearch);
+router.post("/api/search/redisearch", handleSearch);
+
+// ==========================================
+// SERIES ROUTES (Points Table, Squads, Matches)
+// ==========================================
+
+// 1. Series Points Table
+const handlePointsTable = async (req, res) => {
+  if (shouldServeHtml(req)) {
+    return res.sendFile(path.join(publicDir, "series.html"));
+  }
+  try {
+    const data = await getSeriesPointsTable(req.params.id);
+    if (!data) return res.status(404).json({ success: false, error: "Series points table not found" });
+    res.json({ success: true, ...data });
+  } catch (err) {
+    res.status(500).json({ success: false, error: err.message });
+  }
+};
+
+router.get(["/series/:id/points-table", "/series/:id/point-table", "/api/series/:id/points-table", "/api/series/:id/point-table"], handlePointsTable);
+
+// 2. Series Squads
+const handleSeriesSquads = async (req, res) => {
+  if (shouldServeHtml(req)) {
+    return res.sendFile(path.join(publicDir, "series.html"));
+  }
+  try {
+    const data = await getSeriesSquads(req.params.id);
+    if (!data) return res.status(404).json({ success: false, error: "Series squads not found" });
+    res.json({ success: true, ...data });
+  } catch (err) {
+    res.status(500).json({ success: false, error: err.message });
+  }
+};
+
+router.get(["/series/:id/team-squad", "/series/:id/squad", "/series/:id/squads", "/api/series/:id/team-squad", "/api/series/:id/squad", "/api/series/:id/squads"], handleSeriesSquads);
+
+// 3. Series Matches
+const handleSeriesMatches = async (req, res) => {
+  if (shouldServeHtml(req)) {
+    return res.sendFile(path.join(publicDir, "series.html"));
+  }
+  try {
+    const data = await getSeriesMatches(req.params.id);
+    if (!data) return res.status(404).json({ success: false, error: "Series matches not found" });
+    res.json({ success: true, ...data });
+  } catch (err) {
+    res.status(500).json({ success: false, error: err.message });
+  }
+};
+
+router.get(["/series/:id/matches", "/api/series/:id/matches"], handleSeriesMatches);
+
+// Series Hub Root
+router.get(["/series/:id", "/api/series/:id"], async (req, res) => {
+  if (shouldServeHtml(req)) {
+    return res.sendFile(path.join(publicDir, "series.html"));
+  }
+  try {
+    const data = await getSeriesPointsTable(req.params.id);
+    if (!data) return res.status(404).json({ success: false, error: "Series not found" });
+    res.json({ success: true, ...data });
+  } catch (err) {
+    res.status(500).json({ success: false, error: err.message });
+  }
+});
+
+// ==========================================
+// TEAM ROUTES (Overview & Fixtures)
+// ==========================================
+
+// 4. Team Matches
+const handleTeamMatches = async (req, res) => {
+  if (shouldServeHtml(req)) {
+    return res.sendFile(path.join(publicDir, "team.html"));
+  }
+  try {
+    const data = await getTeamMatches(req.params.id);
+    if (!data) return res.status(404).json({ success: false, error: "Team matches not found" });
+    res.json({ success: true, ...data });
+  } catch (err) {
+    res.status(500).json({ success: false, error: err.message });
+  }
+};
+
+router.get(["/team/:id/matches", "/api/team/:id/matches"], handleTeamMatches);
+
+// 5. Team Overview & Bio
+const handleTeamOverview = async (req, res) => {
+  if (shouldServeHtml(req)) {
+    return res.sendFile(path.join(publicDir, "team.html"));
+  }
+  try {
+    const data = await getTeamOverview(req.params.id);
+    if (!data) return res.status(404).json({ success: false, error: "Team not found" });
+    res.json({ success: true, team: data });
+  } catch (err) {
+    res.status(500).json({ success: false, error: err.message });
+  }
+};
+
+router.get(["/team/:id", "/api/team/:id"], handleTeamOverview);
+
+

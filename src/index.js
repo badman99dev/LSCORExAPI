@@ -15,7 +15,7 @@ const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 
 const app = express();
-const PORT = process.env.PORT || 3000;
+const PORT = 3000;
 const HOST = process.env.HOST || '0.0.0.0';
 
 // Enable CORS & JSON parsing
@@ -32,6 +32,11 @@ app.use('/', router);
 // Explicit docs and root route
 app.get(['/', '/docs'], (req, res) => {
   res.sendFile(path.join(publicDir, 'index.html'));
+});
+
+// Dedicated Match Scorecard & SSE Live Streaming Next Page
+app.get(['/match', '/match/:id', '/score/:id'], (req, res) => {
+  res.sendFile(path.join(publicDir, 'match.html'));
 });
 
 // Start HTTP server

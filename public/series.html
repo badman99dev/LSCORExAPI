@@ -1,0 +1,372 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>🏆 Series Hub — Standings, Squads & Matches</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500;700&family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+  <style>
+    :root {
+      --bg: #090d16;
+      --card-bg: #111827;
+      --card-border: #1f2937;
+      --accent: #10b981;
+      --text: #f3f4f6;
+      --text-muted: #9ca3af;
+      --mono: "JetBrains Mono", monospace;
+      --sans: "Plus Jakarta Sans", sans-serif;
+    }
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body {
+      background: var(--bg);
+      color: var(--text);
+      font-family: var(--sans);
+      min-height: 100vh;
+      line-height: 1.5;
+      padding-bottom: 60px;
+    }
+    header {
+      background: rgba(17, 24, 39, 0.95);
+      backdrop-filter: blur(12px);
+      border-bottom: 1px solid var(--card-border);
+      position: sticky;
+      top: 0;
+      z-index: 50;
+      padding: 14px 24px;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+    }
+    .brand {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      text-decoration: none;
+      color: var(--text);
+      font-weight: 800;
+      font-size: 1.15rem;
+    }
+    .container {
+      max-width: 1100px;
+      margin: 0 auto;
+      padding: 24px 20px;
+    }
+    .back-btn {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      color: #38bdf8;
+      text-decoration: none;
+      font-weight: 600;
+      font-size: 0.88rem;
+      padding: 6px 14px;
+      border-radius: 6px;
+      background: #1e293b;
+      transition: background 0.2s;
+    }
+    .back-btn:hover { background: #334155; }
+    .hero {
+      background: linear-gradient(180deg, #182234 0%, #0f172a 100%);
+      border: 1px solid #1e293b;
+      border-radius: 16px;
+      padding: 26px;
+      margin-bottom: 24px;
+    }
+    .tabs-bar {
+      display: flex;
+      gap: 8px;
+      border-bottom: 1px solid var(--card-border);
+      margin-bottom: 24px;
+    }
+    .tab-btn {
+      background: transparent;
+      border: none;
+      color: var(--text-muted);
+      font-weight: 700;
+      padding: 12px 20px;
+      font-size: 0.95rem;
+      cursor: pointer;
+      border-bottom: 2px solid transparent;
+      transition: all 0.2s;
+    }
+    .tab-btn.active {
+      color: #10b981;
+      border-bottom-color: #10b981;
+    }
+    .card {
+      background: var(--card-bg);
+      border: 1px solid var(--card-border);
+      border-radius: 12px;
+      padding: 20px;
+      margin-bottom: 20px;
+    }
+    .table-custom {
+      width: 100%;
+      border-collapse: collapse;
+      font-size: 0.9rem;
+    }
+    .table-custom th, .table-custom td {
+      padding: 12px 14px;
+      text-align: left;
+      border-bottom: 1px solid #1f2937;
+    }
+    .table-custom th { color: var(--text-muted); font-weight: 700; }
+    .form-chip {
+      display: inline-block;
+      width: 20px;
+      height: 20px;
+      border-radius: 50%;
+      text-align: center;
+      line-height: 20px;
+      font-size: 0.7rem;
+      font-weight: 800;
+      margin-right: 4px;
+    }
+    .form-w { background: #059669; color: #fff; }
+    .form-l { background: #dc2626; color: #fff; }
+    .form-d { background: #4b5563; color: #fff; }
+  </style>
+</head>
+<body>
+
+  <header>
+    <a href="/" class="brand">
+      <span>⚡ LSCORExAPI</span>
+      <span style="background:#0284c722; color:#38bdf8; padding:2px 8px; border-radius:9999px; font-size:0.75rem;">Series Hub</span>
+    </a>
+    <a href="/" class="back-btn">⬅ All Matches</a>
+  </header>
+
+  <div class="container">
+    <div style="margin-bottom:16px;">
+      <a href="/" class="back-btn">⬅ Back to Home</a>
+    </div>
+
+    <!-- Series Header Hero -->
+    <div class="hero">
+      <div style="display:flex; align-items:center; gap:16px;">
+        <div style="font-size:2.4rem;">🏆</div>
+        <div>
+          <h1 id="seriesTitle" style="font-size:1.6rem; font-weight:800; color:#fff;">Tournament Series</h1>
+          <p id="seriesSub" style="color:var(--text-muted); font-size:0.9rem; margin-top:4px;">Points Table, Squads & Fixtures</p>
+        </div>
+      </div>
+    </div>
+
+    <!-- Tabs Navigation -->
+    <div class="tabs-bar">
+      <button id="tabBtn-points" class="tab-btn active" onclick="switchTab('points')">📊 Points Table</button>
+      <button id="tabBtn-squads" class="tab-btn" onclick="switchTab('squads')">👥 Team Squads</button>
+      <button id="tabBtn-matches" class="tab-btn" onclick="switchTab('matches')">📅 Matches & Fixtures</button>
+    </div>
+
+    <!-- TAB 1: POINTS TABLE -->
+    <div id="content-points">
+      <div class="card">
+        <h3 style="font-size:1.1rem; margin-bottom:16px; color:#f8fafc;">Tournament Standings</h3>
+        <div id="pointsTableContainer">
+          <div style="padding:40px; text-align:center; color:var(--text-muted);">Loading standings...</div>
+        </div>
+      </div>
+    </div>
+
+    <!-- TAB 2: SQUADS -->
+    <div id="content-squads" style="display:none;">
+      <div id="squadsContainer">
+        <div style="padding:40px; text-align:center; color:var(--text-muted);">Loading team squads...</div>
+      </div>
+    </div>
+
+    <!-- TAB 3: MATCHES -->
+    <div id="content-matches" style="display:none;">
+      <div class="card">
+        <h3 style="font-size:1.1rem; margin-bottom:16px; color:#f8fafc;">Tournament Schedule & Results</h3>
+        <div id="matchesContainer">
+          <div style="padding:40px; text-align:center; color:var(--text-muted);">Loading fixtures...</div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    const urlParams = new URLSearchParams(window.location.search);
+    let seriesId = urlParams.get("id");
+    let requestedTab = urlParams.get("tab") || "points";
+
+    const pathParts = window.location.pathname.split("/").filter(Boolean);
+    if (pathParts[0] === "series" && pathParts[1]) {
+      seriesId = pathParts[1];
+      if (pathParts[2]) {
+        if (pathParts[2].includes("squad")) requestedTab = "squads";
+        else if (pathParts[2].includes("match")) requestedTab = "matches";
+        else if (pathParts[2].includes("point")) requestedTab = "points";
+      }
+    }
+    if (!seriesId) seriesId = "2MS";
+
+    function switchTab(tabId) {
+      ["points", "squads", "matches"].forEach(t => {
+        document.getElementById("content-" + t).style.display = t === tabId ? "block" : "none";
+        document.getElementById("tabBtn-" + t).classList.toggle("active", t === tabId);
+      });
+      if (tabId === "points") loadPointsTable();
+      if (tabId === "squads") loadSquads();
+      if (tabId === "matches") loadMatches();
+    }
+
+    let pointsLoaded = false;
+    async function loadPointsTable() {
+      if (pointsLoaded) return;
+      try {
+        const res = await fetch(`/api/series/${seriesId}/points-table`, { headers: { 'Accept': 'application/json' } });
+        const data = await res.json();
+        const container = document.getElementById("pointsTableContainer");
+
+        if (!data.success || !data.groups || !data.groups.length) {
+          container.innerHTML = `<div style="padding:30px; color:var(--text-muted);">Points table not available for this series.</div>`;
+          return;
+        }
+
+        pointsLoaded = true;
+        const grp = data.groups[0];
+        document.getElementById("seriesTitle").textContent = grp.groupName || "Cricket Series";
+
+        container.innerHTML = `
+          <div style="overflow-x:auto;">
+            <table class="table-custom">
+              <thead>
+                <tr>
+                  <th>Rank</th>
+                  <th>Team</th>
+                  <th style="text-align:center;">P</th>
+                  <th style="text-align:center;">W</th>
+                  <th style="text-align:center;">L</th>
+                  <th style="text-align:center;">Pts</th>
+                  <th style="text-align:right;">NRR</th>
+                  <th style="text-align:center;">Form</th>
+                </tr>
+              </thead>
+              <tbody>
+                ${grp.standings.map(s => `
+                  <tr>
+                    <td style="font-family:var(--mono); font-weight:700; color:#38bdf8;">${s.rank}</td>
+                    <td>
+                      <div style="display:flex; align-items:center; gap:10px;">
+                        <img src="${s.team.logo}" style="width:28px; height:28px; object-fit:contain;" onerror="this.style.display='none'">
+                        <strong style="color:#f1f5f9;">${s.team.name}</strong>
+                      </div>
+                    </td>
+                    <td style="text-align:center; font-family:var(--mono);">${s.played}</td>
+                    <td style="text-align:center; font-family:var(--mono); color:#10b981; font-weight:700;">${s.won}</td>
+                    <td style="text-align:center; font-family:var(--mono); color:#ef4444;">${s.lost}</td>
+                    <td style="text-align:center; font-family:var(--mono); font-weight:800; color:#fbbf24; font-size:1rem;">${s.points}</td>
+                    <td style="text-align:right; font-family:var(--mono);">${s.netRunRate}</td>
+                    <td style="text-align:center;">
+                      ${(s.recentForm || []).map(f => `<span class="form-chip form-${f.toLowerCase()}">${f}</span>`).join("")}
+                    </td>
+                  </tr>
+                `).join("")}
+              </tbody>
+            </table>
+          </div>
+        `;
+      } catch (err) {
+        document.getElementById("pointsTableContainer").innerHTML = `<div style="color:#ef4444; padding:20px;">Failed to load points table: ${err.message}</div>`;
+      }
+    }
+
+    let squadsLoaded = false;
+    async function loadSquads() {
+      if (squadsLoaded) return;
+      try {
+        const res = await fetch(`/api/series/${seriesId}/team-squad`, { headers: { 'Accept': 'application/json' } });
+        const data = await res.json();
+        const container = document.getElementById("squadsContainer");
+        if (!data.success || !data.teams) {
+          container.innerHTML = `<div class="card" style="padding:30px; color:var(--text-muted);">Squads not available.</div>`;
+          return;
+        }
+
+        squadsLoaded = true;
+        container.innerHTML = `
+          <div style="display:grid; grid-template-columns:repeat(auto-fit, minmax(320px, 1fr)); gap:20px;">
+            ${data.teams.map(t => `
+              <div class="card">
+                <div style="display:flex; align-items:center; gap:12px; margin-bottom:14px; padding-bottom:12px; border-bottom:1px solid #1f2937;">
+                  <img src="${t.logo}" style="width:36px; height:36px; object-fit:contain;" onerror="this.style.display='none'">
+                  <h3 style="font-size:1.1rem; font-weight:800; color:#fff;">${t.name} (${t.playersCount || 0})</h3>
+                </div>
+                <div style="display:flex; flex-direction:column; gap:6px; max-height:360px; overflow-y:auto;">
+                  ${t.players.map(p => `
+                    <div style="display:flex; align-items:center; gap:10px; padding:6px 10px; background:#182234; border-radius:6px;">
+                      <img src="${p.head}" style="width:32px; height:32px; border-radius:50%; object-fit:cover; background:#0f172a;" onerror="this.style.display='none'">
+                      <div style="flex:1;">
+                        <div style="font-size:0.88rem; font-weight:700;">${p.name}${p.captain ? ' <span style="color:#fbbf24;">(C)</span>' : ''}</div>
+                        <div style="font-size:0.75rem; color:var(--text-muted);">${p.role}</div>
+                      </div>
+                    </div>
+                  `).join("")}
+                </div>
+              </div>
+            `).join("")}
+          </div>
+        `;
+      } catch (err) {
+        document.getElementById("squadsContainer").innerHTML = `<div class="card" style="color:#ef4444; padding:20px;">Failed to load squads: ${err.message}</div>`;
+      }
+    }
+
+    let matchesLoaded = false;
+    async function loadMatches() {
+      if (matchesLoaded) return;
+      try {
+        const res = await fetch(`/api/series/${seriesId}/matches`, { headers: { 'Accept': 'application/json' } });
+        const data = await res.json();
+        const container = document.getElementById("matchesContainer");
+        if (!data.success || !data.matches) {
+          container.innerHTML = `<div style="padding:30px; color:var(--text-muted);">Matches not available.</div>`;
+          return;
+        }
+
+        matchesLoaded = true;
+        container.innerHTML = `
+          <div style="display:flex; flex-direction:column; gap:12px;">
+            ${data.matches.map(m => `
+              <div style="background:#182234; border:1px solid #233144; border-radius:10px; padding:16px; display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:14px;">
+                <div style="flex:1; min-width:260px;">
+                  <div style="font-size:0.78rem; color:var(--text-muted); margin-bottom:6px;">
+                    ${m.date || ""} • ${m.matchDesc || "Match"} • ${m.format || "T20"} ${m.venue ? '• 📍 ' + m.venue : ''}
+                  </div>
+                  <div style="display:flex; align-items:center; gap:16px;">
+                    <div style="display:flex; align-items:center; gap:8px;">
+                      <img src="${m.teams.team1.logo}" style="width:26px; height:26px; object-fit:contain;" onerror="this.style.display='none'">
+                      <strong>${m.teams.team1.name}</strong>
+                      ${m.teams.team1.score ? `<span style="font-family:var(--mono); color:#10b981; font-weight:700; margin-left:4px;">${m.teams.team1.score}</span>` : ''}
+                    </div>
+                    <span style="color:#64748b; font-weight:800;">vs</span>
+                    <div style="display:flex; align-items:center; gap:8px;">
+                      <img src="${m.teams.team2.logo}" style="width:26px; height:26px; object-fit:contain;" onerror="this.style.display='none'">
+                      <strong>${m.teams.team2.name}</strong>
+                      ${m.teams.team2.score ? `<span style="font-family:var(--mono); color:#10b981; font-weight:700; margin-left:4px;">${m.teams.team2.score}</span>` : ''}
+                    </div>
+                  </div>
+                  ${m.winner ? `<div style="font-size:0.78rem; color:#fbbf24; font-weight:600; margin-top:4px;">🏆 Winner: ${m.winner}</div>` : ''}
+                </div>
+                <div>
+                  ${m.id ? `<a href="/match?id=${m.id}" class="back-btn" style="background:#10b981; color:#000; font-weight:700;">Open Match Score ➔</a>` : `<span style="font-size:0.85rem; color:#94a3b8;">${m.statusText}</span>`}
+                </div>
+              </div>
+            `).join("")}
+          </div>
+        `;
+      } catch (err) {
+        document.getElementById("matchesContainer").innerHTML = `<div style="color:#ef4444; padding:20px;">Failed to load matches: ${err.message}</div>`;
+      }
+    }
+
+    switchTab(requestedTab);
+  </script>
+</body>
+</html>

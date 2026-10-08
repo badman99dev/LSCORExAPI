@@ -52,6 +52,8 @@ const SQUAD_FAIL_TTL_MS = 30000; // 30s
 const FIXTURES_TTL_MS = 120000;  // 2 mins for upcoming / finished
 
 const teamCache = new Map();  // code -> { name, shortName, logo }
+const seriesCache = new Map(); // code -> { name, shortName }
+const venueCache = new Map();  // code -> { name }
 const keyMeta = new Map();    // code -> { series, desc, venue, battingTeam, slug, team1Code, team2Code }
 let lastHomeAt = 0;
 let homeInFlight = null;
@@ -397,14 +399,19 @@ function parseXi(str, teamNo, camps, teamCode, jerseyUrl) {
   return out;
 }
 
-async function resolveNames(playerFkeys, teamFkeys) {
+async function resolveNames(playerFkeys = [], teamFkeys = [], seriesFkeys = [], venueFkeys = []) {
   const players = {};
   const teams = {};
+  const series = {};
+  const venues = {};
   try {
     const r = await getJson(MAPDATA_URL, {
       method: 'POST',
-      headers: { ...HEADERS, 'Content-Type': 'application/json' },
-      body: JSON.stringify({ p: playerFkeys, t: teamFkeys, s: [], u: [], v: [], lc: 'en' }),
+      headers: {
+        ...UPCOMING_HEADERS,
+        'type': 'home',
+      },
+      body: JSON.stringify({ p: playerFkeys, t: teamFkeys, s: seriesFkeys, u: [], v: venueFkeys, lc: 'en' }),
       timeout: 10000,
     });
     if (r.ok && r.data) {
@@ -416,9 +423,20 @@ async function resolveNames(playerFkeys, teamFkeys) {
           colors: { card: t.cc || null, primary: t.uc || null, dark: t.dc || null },
         };
       }
+      for (const s of r.data.s || []) {
+        series[s.f_key] = {
+          name: s.n,
+          shortName: s.sn || null,
+        };
+      }
+      for (const v of r.data.v || []) {
+        venues[v.f_key] = {
+          name: v.n,
+        };
+      }
     }
   } catch (_) {}
-  return { players, teams };
+  return { players, teams, series, venues };
 }
 
 async function fetchSquad(code) {
@@ -505,50 +523,164 @@ export async function squadFor(code) {
 
 // --------------------------- MATCH RETRIEVAL (LIVE, UPCOMING, FINISHED) ---------------------------
 
+function formatScoreToken(str) {
+  if (!str) return null;
+  const m = str.match(/^(\d+)(?:\/(\d+))?(?:\(([0-9.]+))?/);
+  if (!m) return str;
+  const runs = m[1];
+  const wkts = m[2];
+  const overs = m[3];
+  if (wkts === '10') return runs;
+  if (wkts && overs) return `${runs}-${wkts} (${overs})`;
+  if (wkts) return `${runs}-${wkts}`;
+  return runs;
+}
+
+function computeMultiDayScore(inn1, inn2) {
+  if (!inn1 && !inn2) return 'Yet to bat';
+  const s1 = formatScoreToken(inn1);
+  const s2 = formatScoreToken(inn2);
+  if (s1 && s2) return `${s1} & ${s2}`;
+  return s1 || 'Yet to bat';
+}
+
+function formatLiveStatus(item) {
+  let status = item.res || item.result || 'Live';
+  if (item.ac && /rain|wet|weather/i.test(item.ac)) {
+    status = 'Rain Delay';
+  } else if (/match stopped/i.test(status) && item.ac) {
+    status = `${status} (${item.ac})`;
+  }
+
+  const isMultiDay = /test|multi.?day|first.?class/i.test(`${item.fo || ''}`);
+  if (isMultiDay) {
+    let day = item.d;
+    if ((!day || day > 5) && item.ti) {
+      const elapsed = Math.floor((Date.now() - item.ti) / (24 * 60 * 60 * 1000)) + 1;
+      if (elapsed >= 1 && elapsed <= 5) day = elapsed;
+    }
+    if (day && day <= 5) {
+      return `Day ${day} : ${status}`;
+    }
+  }
+
+  return status;
+}
+
 export async function getLiveMatches() {
   await refreshNames(false);
   const r = await getJson(LIVE_URL, { headers: HEADERS, timeout: 8000 });
   if (!r.ok || !r.data) return [];
 
-  const list = [];
+  const now = Date.now();
+  const rawList = [];
+
   for (const [code, item] of Object.entries(r.data)) {
+    // 1. Must have valid teams
+    if (!item.b || !item.c) continue;
+
+    // 2. Exclude finished matches (finishTime, es_id: 1, or won/lost in result)
+    if (item.finishTime || item.es_id === 1) continue;
+    if (item.res && /won|defeat|drawn|abandoned|tied/i.test(item.res)) continue;
+    if (item.result && /won|defeat|drawn|abandoned|tied/i.test(item.result)) continue;
+
+    // 3. Exclude Stumps (play concluded for the day, not active live)
+    if (item.res && /stumps/i.test(item.res)) continue;
+
+    // 4. Exclude future upcoming matches where start time is in future and no active innings score
+    if (item.ti && item.ti > now && !item.j && !item.k) continue;
+
+    // 5. Must have an active live innings score or live match session status
+    const hasLiveScore = Boolean(item.j || item.k);
+    const hasLiveStatus = Boolean(item.res && !/won|defeat|drawn|abandoned|tied/i.test(item.res));
+    if (!hasLiveScore && !hasLiveStatus) continue;
+
+    rawList.push({ code, item });
+  }
+
+  // Resolve any unknown teams, series, or venues
+  const unknownTeams = [...new Set(rawList.flatMap(({ item }) => [item.b, item.c]).filter((c) => c && !teamCache.has(c)))];
+  const unknownSeries = [...new Set(rawList.map(({ item }) => item.q?.replace('^', '')).filter((c) => c && !seriesCache.has(c)))];
+  const unknownVenues = [...new Set(rawList.map(({ item }) => item.v).filter((c) => c && !venueCache.has(c)))];
+
+  if (unknownTeams.length || unknownSeries.length || unknownVenues.length) {
+    const { teams, series, venues } = await resolveNames([], unknownTeams, unknownSeries, unknownVenues);
+    for (const [fk, t] of Object.entries(teams)) {
+      teamCache.set(fk, { name: t.name, shortName: t.shortName, logo: ASSETS.TEAM_LOGO(fk) });
+    }
+    for (const [fk, s] of Object.entries(series)) {
+      seriesCache.set(fk, s);
+    }
+    for (const [fk, v] of Object.entries(venues)) {
+      venueCache.set(fk, v);
+    }
+  }
+
+  const list = [];
+  for (const { code, item } of rawList) {
     const km = keyMeta.get(code) || {};
     const t1Code = item.b || km.team1Code;
     const t2Code = item.c || km.team2Code;
 
     const t1Info = teamCache.get(t1Code) || {};
     const t2Info = teamCache.get(t2Code) || {};
+    const seriesCode = item.q?.replace('^', '');
+    const serInfo = seriesCache.get(seriesCode);
+    const venInfo = venueCache.get(item.v);
+
+    const isMultiDay = /test|multi.?day|first.?class/i.test(`${item.fo || ''}`);
+    let scoreRaw1 = item.j || null;
+    let scoreRaw2 = item.k || null;
+    let team1Batting = false;
+    let team2Batting = false;
+
+    if (isMultiDay) {
+      scoreRaw1 = computeMultiDayScore(item.j, item.l);
+      scoreRaw2 = computeMultiDayScore(item.k, item.m);
+
+      if (item.m) {
+        team2Batting = true;
+      } else if (item.l) {
+        team1Batting = true;
+      } else if (item.k) {
+        team2Batting = true;
+      } else if (item.j) {
+        team1Batting = true;
+      }
+    }
 
     const team1 = {
       code: t1Code,
-      name: t1Info.name || item.team1 || null,
-      shortName: t1Info.shortName || item.t1Sname || null,
+      name: t1Info.name || item.team1 || item.t1Sname || t1Code,
+      shortName: t1Info.shortName || item.t1Sname || t1Code,
       logo: ASSETS.TEAM_LOGO(t1Code),
       jersey: ASSETS.JERSEY_LIMITED(t1Code),
       score: item.j ? parseScore(item.j) : null,
-      scoreRaw: item.j || null,
+      scoreRaw: scoreRaw1,
+      isBatting: team1Batting,
     };
 
     const team2 = {
       code: t2Code,
-      name: t2Info.name || item.team2 || null,
-      shortName: t2Info.shortName || item.t2Sname || null,
+      name: t2Info.name || item.team2 || item.t2Sname || t2Code,
+      shortName: t2Info.shortName || item.t2Sname || t2Code,
       logo: ASSETS.TEAM_LOGO(t2Code),
       jersey: ASSETS.JERSEY_LIMITED(t2Code),
       score: item.k ? parseScore(item.k) : null,
-      scoreRaw: item.k || null,
+      scoreRaw: scoreRaw2,
+      isBatting: team2Batting,
     };
 
     list.push({
       id: code,
       tab: 'live',
-      series: km.series || item.sfullname || item.sname || null,
-      matchDesc: km.desc || item.matchNo || null,
-      venue: km.venue || item.vname || null,
+      series: km.series || serInfo?.name || item.sfullname || item.sname || 'Live Cricket Series',
+      matchDesc: km.desc || (item.n ? `Match ${item.n}` : (item.matchNo || 'Live Match')),
+      venue: km.venue || venInfo?.name || item.vname || null,
       format: km.format || item.fo || null,
       status: 'live',
-      statusText: item.result || item.tod || item.rem || 'Live',
-      battingTeam: km.battingTeam || item.rate_team || null,
+      statusText: formatLiveStatus(item),
+      battingTeam: km.battingTeam || (team1Batting ? t1Info.shortName : team2Batting ? t2Info.shortName : null),
       slug: km.slug || null,
       teams: {
         team1,
@@ -582,12 +714,21 @@ export async function getUpcomingMatches() {
     }
   }
 
-  // Resolve unknown team codes
+  // Resolve unknown team codes, series, and venues
   const unknownTeams = [...new Set(rawMatches.flatMap((m) => [m.t1f, m.t2f]).filter((c) => c && !teamCache.has(c)))];
-  if (unknownTeams.length) {
-    const { teams } = await resolveNames([], unknownTeams);
+  const unknownSeries = [...new Set(rawMatches.map((m) => m.sf).filter((c) => c && !seriesCache.has(c)))];
+  const unknownVenues = [...new Set(rawMatches.map((m) => m.vf).filter((c) => c && !venueCache.has(c)))];
+
+  if (unknownTeams.length || unknownSeries.length || unknownVenues.length) {
+    const { teams, series, venues } = await resolveNames([], unknownTeams, unknownSeries, unknownVenues);
     for (const [fk, t] of Object.entries(teams)) {
       teamCache.set(fk, { name: t.name, shortName: t.shortName, logo: ASSETS.TEAM_LOGO(fk) });
+    }
+    for (const [fk, s] of Object.entries(series)) {
+      seriesCache.set(fk, s);
+    }
+    for (const [fk, v] of Object.entries(venues)) {
+      venueCache.set(fk, v);
     }
   }
 
@@ -597,15 +738,19 @@ export async function getUpcomingMatches() {
     const t2Code = m.t2f;
     const t1Info = teamCache.get(t1Code) || {};
     const t2Info = teamCache.get(t2Code) || {};
+    const serInfo = seriesCache.get(m.sf);
+    const venInfo = venueCache.get(m.vf);
 
     const startUtc = m.t ? new Date(m.t).toISOString() : null;
 
     return {
       id: code,
       tab: 'upcoming',
-      series: m.sf || 'Upcoming Tournament',
+      series: serInfo?.name || m.sf || 'Upcoming Tournament',
+      seriesCode: m.sf || null,
       matchDesc: m.mn ? `Match ${m.mn}` : null,
-      venue: m.vf || null,
+      venue: venInfo?.name || m.vf || null,
+      venueCode: m.vf || null,
       format: m.ft ? (m.ft === 4 ? 'T20' : m.ft === 2 ? 'ODI' : 'Test') : null,
       status: 'upcoming',
       statusText: m.dt ? `Starts ${m.dt}` : 'Upcoming',
@@ -654,10 +799,19 @@ export async function getFinishedMatches() {
   if (!r.ok || !Array.isArray(r.data)) return finishedCache.data || [];
 
   const unknownTeams = [...new Set(r.data.flatMap((m) => [m.t1f, m.t2f]).filter((c) => c && !teamCache.has(c)))];
-  if (unknownTeams.length) {
-    const { teams } = await resolveNames([], unknownTeams);
+  const unknownSeries = [...new Set(r.data.map((m) => m.sfkey).filter((c) => c && !seriesCache.has(c)))];
+  const unknownVenues = [...new Set(r.data.map((m) => m.vf).filter((c) => c && !venueCache.has(c)))];
+
+  if (unknownTeams.length || unknownSeries.length || unknownVenues.length) {
+    const { teams, series, venues } = await resolveNames([], unknownTeams, unknownSeries, unknownVenues);
     for (const [fk, t] of Object.entries(teams)) {
       teamCache.set(fk, { name: t.name, shortName: t.shortName, logo: ASSETS.TEAM_LOGO(fk) });
+    }
+    for (const [fk, s] of Object.entries(series)) {
+      seriesCache.set(fk, s);
+    }
+    for (const [fk, v] of Object.entries(venues)) {
+      venueCache.set(fk, v);
     }
   }
 
@@ -667,6 +821,8 @@ export async function getFinishedMatches() {
     const t2Code = m.t2f;
     const t1Info = teamCache.get(t1Code) || {};
     const t2Info = teamCache.get(t2Code) || {};
+    const serInfo = seriesCache.get(m.sfkey);
+    const venInfo = venueCache.get(m.vf);
 
     const team1Score = m.score1 ? `${m.score1}${m.overs1 ? ` (${m.overs1})` : ''}` : null;
     const team2Score = m.score2 ? `${m.score2}${m.overs2 ? ` (${m.overs2})` : ''}` : null;
@@ -674,9 +830,11 @@ export async function getFinishedMatches() {
     return {
       id: code,
       tab: 'finished',
-      series: m.sfkey || 'Cricket Series',
+      series: serInfo?.name || m.sfkey || 'Cricket Series',
+      seriesCode: m.sfkey || null,
       matchDesc: m.match_number ? `Match ${m.match_number}` : null,
-      venue: m.vf || null,
+      venue: venInfo?.name || m.vf || null,
+      venueCode: m.vf || null,
       format: m.match_type ? (m.match_type === 5 ? 'T20' : 'ODI') : null,
       status: 'finished',
       statusText: m.result || 'Finished',
@@ -719,8 +877,25 @@ export async function getAllMatches() {
 }
 
 export async function getMatchDetail(code) {
-  const state = await getPageState(code);
-  if (!state) {
+  let state = await getPageState(code);
+  let sv = state?.['https://api.goscorer.com/api/v3/getSV3'] || null;
+
+  // Direct SV3 fallback if SSR state is not available
+  if (!sv) {
+    try {
+      const svDirect = await getJson(`https://api.goscorer.com/api/v3/getSV3?key=${encodeURIComponent(code)}`, {
+        headers: UPCOMING_HEADERS,
+        timeout: 8000,
+      });
+      if (svDirect.ok && svDirect.data && !svDirect.data.error) {
+        sv = svDirect.data;
+        if (!state) state = { 'https://api.goscorer.com/api/v3/getSV3': sv };
+        else state['https://api.goscorer.com/api/v3/getSV3'] = sv;
+      }
+    } catch (_) {}
+  }
+
+  if (!state && !sv) {
     // Check in live matches first
     const live = await getLiveMatches();
     const foundLive = live.find((m) => m.id === code);
@@ -736,44 +911,155 @@ export async function getMatchDetail(code) {
     return upcoming.find((m) => m.id === code) || null;
   }
 
-  const sv = state['https://api.goscorer.com/api/v3/getSV3'] || {};
-  const rich = buildRich(state, code);
+  sv = sv || {};
+  const rich = buildRich(state || {}, code);
   const km = keyMeta.get(code) || {};
 
-  const t1Code = sv.t1f || km.team1Code;
-  const t2Code = sv.t2f || km.team2Code;
+  // Extract team codes: from sv.t1f / sv.a ("8B.8M") or keyMeta
+  let t1Code = sv.t1f || km.team1Code;
+  let t2Code = sv.t2f || km.team2Code;
+  if (!t1Code || !t2Code) {
+    if (typeof sv.a === 'string' && sv.a.includes('.')) {
+      const parts = sv.a.split('.');
+      t1Code = t1Code || parts[0];
+      t2Code = t2Code || parts[1];
+    }
+  }
+
+  // Resolve unknown team codes
+  const missingTeams = [t1Code, t2Code].filter((c) => c && !teamCache.has(c));
+  if (missingTeams.length) {
+    const { teams } = await resolveNames([], missingTeams);
+    for (const [fk, t] of Object.entries(teams)) {
+      teamCache.set(fk, { name: t.name, shortName: t.shortName, logo: ASSETS.TEAM_LOGO(fk) });
+    }
+  }
+
   const t1Info = teamCache.get(t1Code) || {};
   const t2Info = teamCache.get(t2Code) || {};
 
+  const scoreRaw1 = sv.j || sv.s1 || null;
+  const scoreRaw2 = sv.k || sv.s2 || null;
+
   const team1 = {
     code: t1Code,
-    name: t1Info.name || sv.t1 || null,
-    shortName: t1Info.shortName || sv.t1Short || null,
+    name: t1Info.name || sv.t1 || sv.speech_names?.[t1Code] || t1Code,
+    shortName: t1Info.shortName || sv.t1Short || t1Code,
     logo: ASSETS.TEAM_LOGO(t1Code),
     jersey: ASSETS.JERSEY_LIMITED(t1Code),
-    score: sv.j ? parseScore(sv.j) : null,
-    scoreRaw: sv.j || null,
+    score: scoreRaw1 ? parseScore(scoreRaw1) : null,
+    scoreRaw: scoreRaw1,
+    subScore: sv.K || null,
   };
 
   const team2 = {
     code: t2Code,
-    name: t2Info.name || sv.t2 || null,
-    shortName: t2Info.shortName || sv.t2Short || null,
+    name: t2Info.name || sv.t2 || sv.speech_names?.[t2Code] || t2Code,
+    shortName: t2Info.shortName || sv.t2Short || t2Code,
     logo: ASSETS.TEAM_LOGO(t2Code),
     jersey: ASSETS.JERSEY_LIMITED(t2Code),
-    score: sv.k ? parseScore(sv.k) : null,
-    scoreRaw: sv.k || null,
+    score: scoreRaw2 ? parseScore(scoreRaw2) : null,
+    scoreRaw: scoreRaw2,
+    subScore: sv.J || null,
   };
+
+  // If rich recent balls is empty but sv has rb:
+  if ((!rich.recentBalls || !rich.recentBalls.length) && Array.isArray(sv.rb)) {
+    rich.recentBalls = [];
+    for (const overObj of sv.rb) {
+      for (const b of overObj.b || []) {
+        rich.recentBalls.push({
+          over: `${overObj.o}.${b.d}`,
+          text: b.u || String(b.t || '0'),
+          score: overObj.ts || null,
+          shot: null,
+          wagon: null,
+          commentary: null,
+        });
+      }
+    }
+  }
+
+  const resultText = sv.B || sv.result || rich.equation || (sv.e === 1 ? 'Live' : 'Match in Progress');
 
   return {
     id: code,
-    series: rich.series || km.series || null,
-    matchDesc: rich.matchDesc || km.desc || null,
-    venue: rich.venue || km.venue || null,
-    format: rich.format || km.format || null,
-    status: 'live',
-    statusText: sv.result || rich.equation || 'Live',
+    series: rich.series || km.series || seriesCache.get(sv.sf)?.name || sv.sf || null,
+    matchDesc: rich.matchDesc || km.desc || (sv.mn ? `Match ${sv.mn}` : null),
+    venue: rich.venue || km.venue || venueCache.get(sv.v)?.name || sv.v || null,
+    format: rich.format || km.format || sv.fo || null,
+    status: sv.e === 0 ? 'finished' : 'live',
+    statusText: resultText,
+    result: sv.B || null,
+    manOfMatch: sv.mm || null,
     teams: { team1, team2 },
     rich,
   };
+}
+
+// --------------------------- LIVE SEARCH API ---------------------------
+
+export async function searchCricket(query) {
+  if (!query || typeof query !== 'string' || !query.trim()) {
+    return [];
+  }
+  const q = query.trim();
+  const r = await getJson('https://crex.com/api/search/redisearch', {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+      'platform': 'web-crex',
+      'Version': '96.0.0',
+      'cc': 'IN',
+      'Accept': 'application/json, text/plain',
+      'Origin': 'https://crex.com',
+      'Referer': 'https://crex.com/',
+      'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36',
+    },
+    body: JSON.stringify({ exp: q }),
+    timeout: 8000,
+  });
+
+  if (!r.ok || !Array.isArray(r.data)) {
+    return [];
+  }
+
+  return r.data.map((item) => {
+    let category = 'Other';
+    let image = null;
+    if (item.t === 2) {
+      category = 'Player';
+      image = ASSETS.PLAYER_HEAD(item.f);
+    } else if (item.t === 5) {
+      category = 'Series';
+    } else if (item.t === 3 || item.t === 4) {
+      category = 'Team';
+      image = ASSETS.TEAM_LOGO(item.f);
+    }
+
+    const slug = (item.n || '')
+      .toLowerCase()
+      .replace(/[^a-z0-9]+/g, '-')
+      .replace(/(^-|-$)/g, '') + (item.f ? '-' + item.f : '');
+
+    let href = null;
+    if (category === 'Series') {
+      href = `/series/${slug}/points-table`;
+    } else if (category === 'Team') {
+      href = `/team/${slug}`;
+    }
+
+    return {
+      id: item.f,
+      name: item.n,
+      slug,
+      href,
+      typeCode: item.t,
+      category,
+      teamCode: item.tf || null,
+      endDate: item.ed || null,
+      status: item.st || null,
+      image,
+    };
+  });
 }

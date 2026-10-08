@@ -464,6 +464,19 @@
         <p>Reverse-engineered live feeds from CREX with dedicated match score pages, live SSE streaming, and Playing XI.</p>
       </div>
 
+      <!-- Live Search Bar -->
+      <div style="position:relative; max-width:650px; margin-bottom:24px;">
+        <div style="position:relative;">
+          <input type="text" id="liveSearchInput" placeholder="🔍 Search tournaments (e.g. Wcl, IPL), players (e.g. Virat), teams..." 
+                 style="width:100%; background:#111827; border:1px solid #374151; color:#fff; padding:12px 18px; border-radius:10px; font-size:0.95rem; outline:none; font-family:var(--sans);"
+                 oninput="onSearchInput(this.value)"
+                 onfocus="if(this.value.trim()) document.getElementById('searchResultsDropdown').style.display='block';">
+          <button onclick="document.getElementById('liveSearchInput').value=''; document.getElementById('searchResultsDropdown').style.display='none';" 
+                  style="position:absolute; right:12px; top:50%; transform:translateY(-50%); background:none; border:none; color:#6b7280; font-size:1.1rem; cursor:pointer;">✕</button>
+        </div>
+        <div id="searchResultsDropdown" style="display:none; position:absolute; top:calc(100% + 8px); left:0; right:0; background:#0f172a; border:1px solid #334155; border-radius:12px; z-index:100; max-height:380px; overflow-y:auto; box-shadow:0 15px 35px rgba(0,0,0,0.6); padding:8px;"></div>
+      </div>
+
       <!-- 4 TABS: ALL, LIVE, UPCOMING, FINISHED -->
       <div class="tabs-bar">
         <button class="tab-btn active" onclick="switchTab('all')">
@@ -535,6 +548,42 @@
               <td><code>/matches/:id/squad</code></td>
               <td>Both teams Playing XI and full squad with photos & jerseys.</td>
               <td><span style="color:#6b7280; font-size:0.75rem;">Squad</span></td>
+            </tr>
+            <tr>
+              <td><span class="method-badge">GET</span> / <span class="method-badge">POST</span></td>
+              <td><code>/search?q=:query</code> &amp; <code>/api/search/redisearch</code></td>
+              <td>Search tournaments, players with HD photos, and teams.</td>
+              <td><a href="/search?q=Wcl" target="_blank" class="btn btn-outline" style="padding:2px 8px; font-size:0.75rem;">Test "Wcl"</a></td>
+            </tr>
+            <tr>
+              <td><span class="method-badge">GET</span></td>
+              <td><code>/series/:id/points-table</code></td>
+              <td>Tournament points table (played, won, lost, NRR, points, form).</td>
+              <td><a href="/series/world-championship-of-legends-2026-2MS/points-table" target="_blank" class="btn btn-outline" style="padding:2px 8px; font-size:0.75rem;">Points Table</a></td>
+            </tr>
+            <tr>
+              <td><span class="method-badge">GET</span></td>
+              <td><code>/series/:id/team-squad</code></td>
+              <td>Complete tournament squads, playing roles &amp; player photos.</td>
+              <td><a href="/series/world-championship-of-legends-2026-2MS/team-squad" target="_blank" class="btn btn-outline" style="padding:2px 8px; font-size:0.75rem;">Squads</a></td>
+            </tr>
+            <tr>
+              <td><span class="method-badge">GET</span></td>
+              <td><code>/series/:id/matches</code></td>
+              <td>All matches/fixtures in tournament with scores, results &amp; venues.</td>
+              <td><a href="/series/world-championship-of-legends-2026-2MS/matches" target="_blank" class="btn btn-outline" style="padding:2px 8px; font-size:0.75rem;">Matches</a></td>
+            </tr>
+            <tr>
+              <td><span class="method-badge">GET</span></td>
+              <td><code>/team/:id/matches</code></td>
+              <td>All international and domestic tournament fixtures for team.</td>
+              <td><a href="/team/india-women-16/matches" target="_blank" class="btn btn-outline" style="padding:2px 8px; font-size:0.75rem;">Team Matches</a></td>
+            </tr>
+            <tr>
+              <td><span class="method-badge">GET</span></td>
+              <td><code>/team/:id</code></td>
+              <td>Team overview, ranking, trophies, recent match form &amp; bio.</td>
+              <td><a href="/team/india-women-16" target="_blank" class="btn btn-outline" style="padding:2px 8px; font-size:0.75rem;">Team Bio</a></td>
             </tr>
             <tr>
               <td><span class="method-badge">GET</span></td>
@@ -677,46 +726,52 @@
         if (m.tab === "upcoming" || m.status === "upcoming") badgeClass = "status-upcoming";
         else if (m.tab === "finished" || m.status === "finished") badgeClass = "status-finished";
 
+        const t1 = m.teams?.team1 || {};
+        const t2 = m.teams?.team2 || {};
+        const t1ScoreDisplay = t1.scoreRaw === "Yet to bat" 
+          ? `<span style="font-size:0.85rem; color:#9ca3af; font-weight:500;">Yet to bat</span>` 
+          : `${t1.scoreRaw || "--"}${t1.isBatting ? ' ✏️' : ''}`;
+        const t2ScoreDisplay = t2.scoreRaw === "Yet to bat" 
+          ? `<span style="font-size:0.85rem; color:#9ca3af; font-weight:500;">Yet to bat</span>` 
+          : `${t2.scoreRaw || "--"}${t2.isBatting ? ' ✏️' : ''}`;
+
         return `
-          <div class="match-card" onclick="openMatchPage('${m.id}')">
+          <a href="/match?id=${encodeURIComponent(m.id)}" class="match-card" style="text-decoration:none; color:inherit; display:flex; flex-direction:column; justify-content:space-between;">
             <div>
               <div class="match-card-header">
-                <span>${m.series || "Cricket Tournament"}</span>
-                <span class="status-badge ${badgeClass}">${m.statusText || m.status || "Match"}</span>
+                <div>
+                  <div style="font-weight:700; color:#f8fafc; font-size:0.92rem;">${m.series || "Cricket Tournament"}</div>
+                  <div style="font-size:0.75rem; color:var(--text-muted);">${m.matchDesc || ""}${m.format ? ' • ' + m.format : ''}</div>
+                </div>
+                <span class="status-badge ${badgeClass}">${m.status === 'live' ? '• Live' : (m.statusText || m.status || 'Match')}</span>
+              </div>
+              <div class="team-row" style="margin-top:12px;">
+                <div class="team-title">
+                  <img src="${t1.logo || ""}" class="team-flag" onerror="this.style.display='none'">
+                  <span style="font-weight:${t1.isBatting ? '800' : '600'};">${t1.name || t1.code || "Team 1"}</span>
+                </div>
+                <div class="team-score-num" style="font-size:1.05rem;">${t1ScoreDisplay}</div>
               </div>
               <div class="team-row">
                 <div class="team-title">
-                  <img src="${m.teams?.team1?.logo || ""}" class="team-flag" onerror="this.style.display='none'">
-                  <span>${m.teams?.team1?.name || m.teams?.team1?.code || "Team 1"}</span>
+                  <img src="${t2.logo || ""}" class="team-flag" onerror="this.style.display='none'">
+                  <span style="font-weight:${t2.isBatting ? '800' : '600'};">${t2.name || t2.code || "Team 2"}</span>
                 </div>
-                <div class="team-score-num">${m.teams?.team1?.scoreRaw || "--"}</div>
-              </div>
-              <div class="team-row">
-                <div class="team-title">
-                  <img src="${m.teams?.team2?.logo || ""}" class="team-flag" onerror="this.style.display='none'">
-                  <span>${m.teams?.team2?.name || m.teams?.team2?.code || "Team 2"}</span>
-                </div>
-                <div class="team-score-num">${m.teams?.team2?.scoreRaw || "--"}</div>
+                <div class="team-score-num" style="font-size:1.05rem;">${t2ScoreDisplay}</div>
               </div>
             </div>
-            <div class="card-footer">
-              <span>📍 ${m.venue || "Stadium"}</span>
-              <span style="color:#38bdf8; font-weight:600;">View Score ➔</span>
+            <div class="card-footer" style="margin-top:14px; border-top:1px solid #1f2937; padding-top:10px;">
+              <span style="color:#fbbf24; font-weight:700; font-size:0.82rem;">${m.statusText || m.venue || ""}</span>
+              <span style="color:#38bdf8; font-weight:700; font-size:0.85rem;">Open Live Score ➔</span>
             </div>
-          </div>
+          </a>
         `;
       }).join("");
     }
 
     // Navigation: Open next page for match score
-    async function openMatchPage(id) {
-      activeMatchId = id;
-      document.getElementById("matchesListPage").style.display = "none";
-      document.getElementById("matchScorePage").style.display = "block";
-      window.scrollTo({ top: 0, behavior: "smooth" });
-
-      loadMatchDetails(id);
-      loadSquad();
+    function openMatchPage(id) {
+      window.location.href = `/match?id=${encodeURIComponent(id)}`;
     }
 
     function closeMatchPage() {
@@ -971,6 +1026,64 @@
       term.appendChild(div);
       term.scrollTop = term.scrollHeight;
     }
+
+    let searchTimeout = null;
+    async function onSearchInput(val) {
+      clearTimeout(searchTimeout);
+      const dropdown = document.getElementById("searchResultsDropdown");
+      const q = (val || "").trim();
+      if (!q) {
+        dropdown.style.display = "none";
+        return;
+      }
+      dropdown.style.display = "block";
+      dropdown.innerHTML = `<div style="padding:14px; text-align:center; color:var(--text-muted); font-size:0.85rem;">Searching for "${q}"...</div>`;
+
+      searchTimeout = setTimeout(async () => {
+        try {
+          const res = await fetch(`/search?q=${encodeURIComponent(q)}`);
+          const data = await res.json();
+          if (!data.results || !data.results.length) {
+            dropdown.innerHTML = `<div style="padding:16px; text-align:center; color:var(--text-muted); font-size:0.85rem;">No results found for "${q}".</div>`;
+            return;
+          }
+
+          dropdown.innerHTML = data.results.map(item => {
+            let clickAction = "";
+            const targetUrl = item.href || (item.category === "Series" ? `/series/${item.slug || item.id}/points-table` : item.category === "Team" ? `/team/${item.slug || item.id}` : null);
+            if (targetUrl) {
+              clickAction = `onclick="window.location.href='${targetUrl}'"`;
+            }
+
+            return `
+              <div ${clickAction} style="display:flex; align-items:center; gap:12px; padding:10px 14px; border-radius:8px; background:#182234; margin-bottom:6px; cursor:pointer;"
+                   onmouseover="this.style.background='#1e293b'" onmouseout="this.style.background='#182234'">
+                ${item.image ? `<img src="${item.image}" style="width:36px; height:36px; border-radius:50%; object-fit:cover; background:#0f172a;" onerror="this.style.display='none'">` : `<div style="width:36px; height:36px; border-radius:8px; background:#1e293b; display:flex; align-items:center; justify-content:center; font-size:1.1rem;">${item.category === 'Player' ? '👤' : item.category === 'Series' ? '🏆' : '🏏'}</div>`}
+                <div style="flex:1;">
+                  <div style="font-weight:700; font-size:0.92rem; color:#f1f5f9;">${item.name}</div>
+                  <div style="font-size:0.75rem; color:var(--text-muted); display:flex; gap:8px; align-items:center;">
+                    <span style="background:#0284c722; color:#38bdf8; padding:1px 6px; border-radius:4px; font-weight:700; font-size:0.7rem;">${item.category}</span>
+                    ${item.endDate ? `<span>Ends: ${new Date(item.endDate).toLocaleDateString()}</span>` : ""}
+                    ${item.teamCode ? `<span>Team: ${item.teamCode}</span>` : ""}
+                  </div>
+                </div>
+                ${item.category === "Series" || item.category === "Team" ? `<span style="color:#38bdf8; font-size:0.8rem; font-weight:700;">View Hub ➔</span>` : ""}
+              </div>
+            `;
+          }).join("");
+        } catch (err) {
+          dropdown.innerHTML = `<div style="padding:14px; color:#ef4444; font-size:0.85rem;">Search failed: ${err.message}</div>`;
+        }
+      }, 250);
+    }
+
+    document.addEventListener("click", (e) => {
+      const box = document.getElementById("liveSearchInput");
+      const drop = document.getElementById("searchResultsDropdown");
+      if (drop && box && !box.contains(e.target) && !drop.contains(e.target)) {
+        drop.style.display = "none";
+      }
+    });
 
     fetchMatches();
   </script>

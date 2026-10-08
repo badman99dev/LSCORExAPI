@@ -1,0 +1,306 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>🏏 Team Hub — Profile, Trophies & Fixtures</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500;700&family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+  <style>
+    :root {
+      --bg: #090d16;
+      --card-bg: #111827;
+      --card-border: #1f2937;
+      --accent: #10b981;
+      --text: #f3f4f6;
+      --text-muted: #9ca3af;
+      --mono: "JetBrains Mono", monospace;
+      --sans: "Plus Jakarta Sans", sans-serif;
+    }
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body {
+      background: var(--bg);
+      color: var(--text);
+      font-family: var(--sans);
+      min-height: 100vh;
+      line-height: 1.5;
+      padding-bottom: 60px;
+    }
+    header {
+      background: rgba(17, 24, 39, 0.95);
+      backdrop-filter: blur(12px);
+      border-bottom: 1px solid var(--card-border);
+      position: sticky;
+      top: 0;
+      z-index: 50;
+      padding: 14px 24px;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+    }
+    .brand {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      text-decoration: none;
+      color: var(--text);
+      font-weight: 800;
+      font-size: 1.15rem;
+    }
+    .container {
+      max-width: 1100px;
+      margin: 0 auto;
+      padding: 24px 20px;
+    }
+    .back-btn {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      color: #38bdf8;
+      text-decoration: none;
+      font-weight: 600;
+      font-size: 0.88rem;
+      padding: 6px 14px;
+      border-radius: 6px;
+      background: #1e293b;
+      transition: background 0.2s;
+    }
+    .back-btn:hover { background: #334155; }
+    .hero {
+      background: linear-gradient(180deg, #182234 0%, #0f172a 100%);
+      border: 1px solid #1e293b;
+      border-radius: 16px;
+      padding: 26px;
+      margin-bottom: 24px;
+      display: flex;
+      align-items: center;
+      gap: 20px;
+    }
+    .team-crest-big {
+      width: 72px;
+      height: 72px;
+      object-fit: contain;
+      background: #1e293b;
+      padding: 8px;
+      border-radius: 14px;
+      border: 1px solid #334155;
+    }
+    .tabs-bar {
+      display: flex;
+      gap: 8px;
+      border-bottom: 1px solid var(--card-border);
+      margin-bottom: 24px;
+    }
+    .tab-btn {
+      background: transparent;
+      border: none;
+      color: var(--text-muted);
+      font-weight: 700;
+      padding: 12px 20px;
+      font-size: 0.95rem;
+      cursor: pointer;
+      border-bottom: 2px solid transparent;
+      transition: all 0.2s;
+    }
+    .tab-btn.active {
+      color: #10b981;
+      border-bottom-color: #10b981;
+    }
+    .card {
+      background: var(--card-bg);
+      border: 1px solid var(--card-border);
+      border-radius: 12px;
+      padding: 20px;
+      margin-bottom: 20px;
+    }
+    .form-chip {
+      display: inline-block;
+      width: 24px;
+      height: 24px;
+      border-radius: 50%;
+      text-align: center;
+      line-height: 24px;
+      font-size: 0.75rem;
+      font-weight: 800;
+      margin-right: 6px;
+    }
+    .form-w { background: #059669; color: #fff; }
+    .form-l { background: #dc2626; color: #fff; }
+    .form-d { background: #4b5563; color: #fff; }
+  </style>
+</head>
+<body>
+
+  <header>
+    <a href="/" class="brand">
+      <span>⚡ LSCORExAPI</span>
+      <span style="background:#0284c722; color:#38bdf8; padding:2px 8px; border-radius:9999px; font-size:0.75rem;">Team Hub</span>
+    </a>
+    <a href="/" class="back-btn">⬅ All Matches</a>
+  </header>
+
+  <div class="container">
+    <div style="margin-bottom:16px;">
+      <a href="/" class="back-btn">⬅ Back to Home</a>
+    </div>
+
+    <!-- Team Header Hero -->
+    <div id="teamHero" class="hero">
+      <img id="teamLogo" src="" class="team-crest-big" onerror="this.style.display='none'">
+      <div>
+        <h1 id="teamTitle" style="font-size:1.6rem; font-weight:800; color:#fff;">Cricket Team</h1>
+        <div style="display:flex; gap:12px; align-items:center; margin-top:6px;">
+          <span id="teamCodeBadge" style="background:#1e293b; color:#38bdf8; padding:2px 10px; border-radius:6px; font-weight:700; font-size:0.8rem;">TEAM</span>
+          <span id="teamRecentForm"></span>
+        </div>
+      </div>
+    </div>
+
+    <!-- Tabs Navigation -->
+    <div class="tabs-bar">
+      <button id="tabBtn-overview" class="tab-btn active" onclick="switchTab('overview')">ℹ️ Overview & Bio</button>
+      <button id="tabBtn-matches" class="tab-btn" onclick="switchTab('matches')">📅 Team Matches & Tours</button>
+    </div>
+
+    <!-- TAB 1: OVERVIEW -->
+    <div id="content-overview">
+      <div class="card">
+        <h3 style="font-size:1.1rem; margin-bottom:12px; color:#f8fafc;">About Team</h3>
+        <div id="teamBio" style="color:#cbd5e1; font-size:0.92rem; line-height:1.7;">
+          Loading bio...
+        </div>
+      </div>
+
+      <div class="card" id="trophiesCard" style="display:none;">
+        <h3 style="font-size:1.1rem; margin-bottom:14px; color:#fbbf24;">🏆 Major Trophies</h3>
+        <div id="trophiesList" style="display:flex; flex-wrap:wrap; gap:10px;"></div>
+      </div>
+    </div>
+
+    <!-- TAB 2: MATCHES -->
+    <div id="content-matches" style="display:none;">
+      <div id="teamMatchesContainer">
+        <div style="padding:40px; text-align:center; color:var(--text-muted);">Loading team matches & schedule...</div>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    const urlParams = new URLSearchParams(window.location.search);
+    let teamId = urlParams.get("id");
+    let requestedTab = urlParams.get("tab") || "overview";
+
+    const parts = window.location.pathname.split("/").filter(Boolean);
+    if (parts[0] === "team" && parts[1]) {
+      teamId = parts[1];
+      if (parts[2] && parts[2].includes("match")) {
+        requestedTab = "matches";
+      }
+    }
+    if (!teamId) teamId = "16";
+
+    function switchTab(tabId) {
+      ["overview", "matches"].forEach(t => {
+        document.getElementById("content-" + t).style.display = t === tabId ? "block" : "none";
+        document.getElementById("tabBtn-" + t).classList.toggle("active", t === tabId);
+      });
+      if (tabId === "overview") loadOverview();
+      if (tabId === "matches") loadMatches();
+    }
+
+    let overviewLoaded = false;
+    async function loadOverview() {
+      if (overviewLoaded) return;
+      try {
+        const res = await fetch(`/api/team/${teamId}`, { headers: { 'Accept': 'application/json' } });
+        const data = await res.json();
+        if (!data.success || !data.team) return;
+
+        overviewLoaded = true;
+        const t = data.team;
+        document.getElementById("teamTitle").textContent = t.name;
+        document.getElementById("teamCodeBadge").textContent = t.shortName || t.id;
+        document.getElementById("teamLogo").src = t.logo || "";
+
+        if (t.recentForm && t.recentForm.length) {
+          document.getElementById("teamRecentForm").innerHTML = "Form: " + t.recentForm.slice(0, 5).map(f => {
+            const label = typeof f === 'string' ? f : (f.result ? (f.result.includes('Won') ? 'W' : 'L') : 'M');
+            return `<span class="form-chip form-${label.toLowerCase()}">${label}</span>`;
+          }).join("");
+        }
+
+        if (t.bio) {
+          document.getElementById("teamBio").innerHTML = t.bio;
+        } else {
+          document.getElementById("teamBio").textContent = `${t.name} cricket team profile, squad schedules, and international fixtures.`;
+        }
+
+        if (t.trophies && t.trophies.length) {
+          document.getElementById("trophiesCard").style.display = "block";
+          document.getElementById("trophiesList").innerHTML = t.trophies.map(tr => `
+            <div style="background:#1e293b; padding:8px 14px; border-radius:8px; border:1px solid #334155; font-size:0.85rem; font-weight:700; color:#fbbf24;">
+              🏆 ${tr.n || tr.name || tr}
+            </div>
+          `).join("");
+        }
+      } catch (err) {
+        document.getElementById("teamBio").innerHTML = `<span style="color:#ef4444;">Failed to load team: ${err.message}</span>`;
+      }
+    }
+
+    let matchesLoaded = false;
+    async function loadMatches() {
+      if (matchesLoaded) return;
+      try {
+        const res = await fetch(`/api/team/${teamId}/matches`, { headers: { 'Accept': 'application/json' } });
+        const data = await res.json();
+        const container = document.getElementById("teamMatchesContainer");
+
+        if (!data.success || !data.tournaments || !data.tournaments.length) {
+          container.innerHTML = `<div class="card" style="padding:30px; color:var(--text-muted);">Matches not available for this team.</div>`;
+          return;
+        }
+
+        matchesLoaded = true;
+        container.innerHTML = data.tournaments.map(tour => `
+          <div class="card">
+            <h3 style="font-size:1.05rem; font-weight:800; color:#38bdf8; margin-bottom:14px; border-bottom:1px solid #1f2937; padding-bottom:8px;">
+              🏆 ${tour.seriesName} (${tour.matchesCount})
+            </h3>
+            <div style="display:flex; flex-direction:column; gap:10px;">
+              ${tour.matches.map(m => `
+                <div style="background:#182234; padding:12px 16px; border-radius:8px; border:1px solid #233144; display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:12px;">
+                  <div>
+                    <div style="font-size:0.75rem; color:var(--text-muted); margin-bottom:4px;">
+                      ${m.date || ""} • ${m.matchDesc || "Match"} • ${m.format || "T20"} ${m.venue ? '• 📍 ' + m.venue : ''}
+                    </div>
+                    <div style="display:flex; align-items:center; gap:12px;">
+                      <div style="display:flex; align-items:center; gap:6px;">
+                        <img src="${m.teams.team1.logo}" style="width:24px; height:24px; object-fit:contain;" onerror="this.style.display='none'">
+                        <strong>${m.teams.team1.name}</strong>
+                      </div>
+                      <span style="color:#64748b; font-weight:800;">vs</span>
+                      <div style="display:flex; align-items:center; gap:6px;">
+                        <img src="${m.teams.team2.logo}" style="width:24px; height:24px; object-fit:contain;" onerror="this.style.display='none'">
+                        <strong>${m.teams.team2.name}</strong>
+                      </div>
+                    </div>
+                  </div>
+                  <div>
+                    ${m.id ? `<a href="/match?id=${m.id}" class="back-btn" style="background:#10b981; color:#000; font-weight:700;">View Match ➔</a>` : `<span style="color:#94a3b8; font-size:0.85rem;">${m.statusText}</span>`}
+                  </div>
+                </div>
+              `).join("")}
+            </div>
+          </div>
+        `).join("");
+      } catch (err) {
+        document.getElementById("teamMatchesContainer").innerHTML = `<div class="card" style="color:#ef4444; padding:20px;">Failed to load team matches: ${err.message}</div>`;
+      }
+    }
+
+    switchTab(requestedTab);
+  </script>
+</body>
+</html>

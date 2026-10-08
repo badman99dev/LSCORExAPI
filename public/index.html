@@ -13,7 +13,6 @@
       --card-bg: #111827;
       --card-border: #1f2937;
       --accent: #10b981;
-      --accent-glow: rgba(16, 185, 129, 0.2);
       --live-red: #ef4444;
       --text: #f3f4f6;
       --text-muted: #9ca3af;
@@ -216,6 +215,13 @@
     .btn-outline:hover {
       background: #1f2937;
     }
+    .btn-danger {
+      background: #dc2626;
+      color: #fff;
+    }
+    .btn-danger:hover {
+      background: #ef4444;
+    }
     .terminal {
       background: #030712;
       border: 1px solid #1f2937;
@@ -330,7 +336,7 @@
           <button class="btn btn-outline" onclick="loadMatches()" style="padding:4px 8px; font-size:0.75rem;">↻ Refresh</button>
         </div>
         <div id="matchesContainer" class="matches-list">
-          <div style="color:var(--text-muted); font-size:0.85rem;">Loading live matches...</div>
+          <div style="color:var(--text-muted); font-size:0.85rem;">Loading matches...</div>
         </div>
       </div>
 
@@ -338,13 +344,16 @@
       <div class="card">
         <div class="card-title">
           <div style="display:flex; align-items:center; gap:8px;">
-            <span class="live-dot"></span>
+            <span class="live-dot" id="liveDot" style="display:none;"></span>
             <span>Real-time SSE Stream</span>
           </div>
-          <span id="sseStatus" style="font-size:0.75rem; color:#9ca3af; font-family:var(--mono);">Idle</span>
+          <div style="display:flex; align-items:center; gap:8px;">
+            <span id="sseStatus" style="font-size:0.75rem; color:#9ca3af; font-family:var(--mono);">Idle (No match selected)</span>
+            <button id="stopSseBtn" class="btn btn-outline btn-danger" onclick="disconnectSSE()" style="display:none; padding:2px 8px; font-size:0.75rem;">⏹ Disconnect</button>
+          </div>
         </div>
         <div id="terminal" class="terminal">
-          <div class="terminal-line" style="color:#9ca3af;">Select a match on the left to start live SSE stream.</div>
+          <div class="terminal-line" style="color:#9ca3af;">👈 Click any match on the left to start live SSE stream for that match.</div>
         </div>
       </div>
     </div>
@@ -379,14 +388,8 @@
           <tr>
             <td><span class="method-badge method-sse">SSE</span></td>
             <td><code>/matches/:id/stream</code></td>
-            <td>Infinite SSE stream. Sends initial snapshot then live diffs on every ball.</td>
-            <td><a href="" target="_blank" class="btn btn-outline" style="padding:2px 8px; font-size:0.75rem;">Stream All</a></td>
-          </tr>
-          <tr>
-            <td><span class="method-badge method-sse">SSE</span></td>
-            <td><code>/matches/:id/stream</code></td>
-            <td>Direct SSE stream for a specific match with auto single-worker fan-out.</td>
-            <td><span style="color:#6b7280; font-size:0.75rem;">Per Match</span></td>
+            <td>Infinite SSE stream for a specific match. Sends initial snapshot then live diffs on every ball.</td>
+            <td><span style="color:#38bdf8; font-size:0.75rem;">On-Demand</span></td>
           </tr>
           <tr>
             <td><span class="method-badge">GET</span></td>
@@ -452,7 +455,7 @@
         const res = await fetch('/matches');
         const json = await res.json();
         if (!json.success || !json.matches.length) {
-          container.innerHTML = '<div style="color:#9ca3af; padding:12px;">No live matches right now.</div>';
+          container.innerHTML = '<div style="color:#9ca3af; padding:12px;">No active matches right now.</div>';
           return;
         }
 
@@ -483,9 +486,8 @@
           </div>
         `).join('');
 
-        if (!selectedMatchId && json.matches.length) {
-          selectMatch(json.matches[0].id);
-        }
+        // NOTE: We do NOT auto-select or auto-stream on page load.
+        // User must explicitly click a match to connect SSE.
       } catch (e) {
         container.innerHTML = '<div style="color:#ef4444; padding:12px;">Error loading matches: ' + e.message + '</div>';
       }
@@ -494,6 +496,8 @@
     function selectMatch(id) {
       selectedMatchId = id;
       document.querySelectorAll('.match-item').forEach(el => el.classList.remove('selected'));
+      const activeEl = document.querySelector(`.match-item[onclick*="${id}"]`);
+      if (activeEl) activeEl.classList.add('selected');
       loadMatchDetail(id);
       connectSSE(id);
     }
@@ -508,15 +512,31 @@
       term.scrollTop = term.scrollHeight;
     }
 
-    function connectSSE(id) {
+    function disconnectSSE() {
       if (activeEventSource) {
         activeEventSource.close();
+        activeEventSource = null;
       }
+      document.getElementById('sseStatus').textContent = 'Disconnected';
+      document.getElementById('sseStatus').style.color = '#9ca3af';
+      document.getElementById('liveDot').style.display = 'none';
+      document.getElementById('stopSseBtn').style.display = 'none';
+      logTerminal('DISCONNECT', 'SSE stream closed by user.');
+    }
+
+    function connectSSE(id) {
+      disconnectSSE();
+
       const term = document.getElementById('terminal');
       term.innerHTML = '';
       const statusEl = document.getElementById('sseStatus');
-      statusEl.textContent = 'Connecting...';
+      const liveDot = document.getElementById('liveDot');
+      const stopBtn = document.getElementById('stopSseBtn');
+
+      statusEl.textContent = `Connecting to match ${id}...`;
       statusEl.style.color = '#fbbf24';
+      liveDot.style.display = 'inline-block';
+      stopBtn.style.display = 'inline-flex';
 
       logTerminal('CONNECT', `Opening SSE stream for match: ${id}`);
       activeEventSource = new EventSource(`/matches/${id}/stream`);
@@ -524,12 +544,12 @@
       activeEventSource.onopen = () => {
         statusEl.textContent = `Streaming (${id})`;
         statusEl.style.color = '#10b981';
-        logTerminal('OPEN', 'SSE Stream established. Waiting for packets...');
+        logTerminal('OPEN', `SSE Stream established for match ${id}. Listening for ball changes...`);
       };
 
       activeEventSource.addEventListener('snapshot', (e) => {
         const payload = JSON.parse(e.data);
-        logTerminal('SNAPSHOT', `Initial snapshot received (${JSON.stringify(payload).length} bytes)`);
+        logTerminal('SNAPSHOT', `Initial snapshot received for match ${id}`);
         if (payload.match) renderRichMatch(payload.match);
       });
 

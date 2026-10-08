@@ -3,6 +3,16 @@
  * Emits list of changed leaf paths: [{ path: 'rich.striker.runs', from: 42, to: 46 }]
  */
 
+const IGNORED_DIFF_KEYS = new Set([
+  'updatedAt',
+  'timestamp',
+  'serverTimestamp',
+  'cachedAt',
+  'meta',
+  'ts',
+  'at',
+]);
+
 export function diffResponse(prev, next) {
   const changes = [];
   walk(prev, next, '', changes);
@@ -18,7 +28,7 @@ function walk(a, b, path, out) {
   }
   const keys = new Set([...Object.keys(a), ...Object.keys(b)]);
   for (const k of keys) {
-    if (k === 'meta' || k === 'cachedAt' || k === 'serverTimestamp') continue;
+    if (IGNORED_DIFF_KEYS.has(k)) continue;
     walk(a[k], b[k], path ? `${path}.${k}` : k, out);
   }
 }

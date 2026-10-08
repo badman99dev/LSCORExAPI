@@ -14,10 +14,12 @@
       --card-border: #1f2937;
       --accent: #10b981;
       --live-red: #ef4444;
+      --upcoming-blue: #38bdf8;
+      --finished-gray: #6b7280;
       --text: #f3f4f6;
       --text-muted: #9ca3af;
-      --mono: 'JetBrains Mono', monospace;
-      --sans: 'Plus Jakarta Sans', sans-serif;
+      --mono: "JetBrains Mono", monospace;
+      --sans: "Plus Jakarta Sans", sans-serif;
     }
     * { box-sizing: border-box; margin: 0; padding: 0; }
     body {
@@ -26,10 +28,10 @@
       font-family: var(--sans);
       min-height: 100vh;
       line-height: 1.5;
-      padding: 0 0 60px;
+      padding-bottom: 60px;
     }
     header {
-      background: rgba(17, 24, 39, 0.8);
+      background: rgba(17, 24, 39, 0.85);
       backdrop-filter: blur(12px);
       border-bottom: 1px solid var(--card-border);
       position: sticky;
@@ -63,10 +65,10 @@
       padding: 32px 24px;
     }
     .hero {
-      margin-bottom: 36px;
+      margin-bottom: 28px;
     }
     .hero h1 {
-      font-size: 2.25rem;
+      font-size: 2.2rem;
       font-weight: 800;
       margin-bottom: 8px;
       letter-spacing: -0.03em;
@@ -76,46 +78,263 @@
       font-size: 1.05rem;
       max-width: 700px;
     }
-    .feature-tags {
+
+    /* Tabs Bar */
+    .tabs-bar {
       display: flex;
-      flex-wrap: wrap;
       gap: 8px;
-      margin-top: 14px;
+      background: #111827;
+      padding: 6px;
+      border-radius: 10px;
+      border: 1px solid var(--card-border);
+      margin-bottom: 24px;
+      width: fit-content;
+      flex-wrap: wrap;
     }
-    .tag {
-      background: #1f2937;
-      color: #d1d5db;
-      font-size: 0.8rem;
-      padding: 4px 10px;
-      border-radius: 6px;
-      font-weight: 500;
+    .tab-btn {
+      background: transparent;
+      border: none;
+      color: var(--text-muted);
+      padding: 8px 18px;
+      border-radius: 7px;
+      font-weight: 600;
+      font-size: 0.88rem;
+      cursor: pointer;
       display: inline-flex;
       align-items: center;
-      gap: 6px;
+      gap: 8px;
+      transition: all 0.2s;
     }
-    .grid-2 {
+    .tab-btn:hover {
+      color: var(--text);
+      background: #1f2937;
+    }
+    .tab-btn.active {
+      background: #1f2937;
+      color: #fff;
+      box-shadow: 0 1px 3px rgba(0,0,0,0.3);
+    }
+    .tab-badge {
+      background: #374151;
+      padding: 1px 6px;
+      border-radius: 9999px;
+      font-size: 0.75rem;
+      font-family: var(--mono);
+    }
+
+    /* Matches Grid */
+    .matches-grid {
       display: grid;
-      grid-template-columns: 1fr 1fr;
-      gap: 24px;
-      margin-bottom: 36px;
+      grid-template-columns: repeat(auto-fill, minmax(360px, 1fr));
+      gap: 16px;
+      margin-bottom: 40px;
     }
-    @media (max-width: 900px) {
-      .grid-2 { grid-template-columns: 1fr; }
-    }
-    .card {
+    .match-card {
       background: var(--card-bg);
       border: 1px solid var(--card-border);
       border-radius: 12px;
-      padding: 20px;
-    }
-    .card-title {
-      font-size: 1.1rem;
-      font-weight: 700;
-      margin-bottom: 16px;
+      padding: 16px;
+      cursor: pointer;
+      transition: all 0.2s;
       display: flex;
-      align-items: center;
+      flex-direction: column;
       justify-content: space-between;
     }
+    .match-card:hover {
+      border-color: #38bdf8;
+      transform: translateY(-2px);
+      box-shadow: 0 8px 24px rgba(0,0,0,0.4);
+    }
+    .match-card-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      font-size: 0.78rem;
+      color: var(--text-muted);
+      margin-bottom: 12px;
+    }
+    .status-badge {
+      font-size: 0.72rem;
+      font-weight: 700;
+      padding: 2px 8px;
+      border-radius: 9999px;
+      text-transform: uppercase;
+      letter-spacing: 0.04em;
+    }
+    .status-live {
+      background: #ef444422;
+      color: var(--live-red);
+      border: 1px solid #ef444455;
+    }
+    .status-upcoming {
+      background: #38bdf822;
+      color: var(--upcoming-blue);
+      border: 1px solid #38bdf855;
+    }
+    .status-finished {
+      background: #6b728022;
+      color: var(--finished-gray);
+      border: 1px solid #6b728055;
+    }
+    .team-row {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-bottom: 8px;
+    }
+    .team-title {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      font-weight: 700;
+      font-size: 1rem;
+    }
+    .team-flag {
+      width: 28px;
+      height: 28px;
+      border-radius: 50%;
+      background: #374151;
+      object-fit: cover;
+    }
+    .team-score-num {
+      font-family: var(--mono);
+      font-weight: 700;
+      font-size: 1.05rem;
+      color: #fbbf24;
+    }
+    .card-footer {
+      border-top: 1px dashed var(--card-border);
+      padding-top: 10px;
+      margin-top: 10px;
+      font-size: 0.8rem;
+      color: var(--text-muted);
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+    }
+
+    /* Dedicated Match Score Page View */
+    #matchScorePage {
+      display: none;
+    }
+    .back-nav {
+      margin-bottom: 20px;
+    }
+    .btn-back {
+      background: #1f2937;
+      color: var(--text);
+      border: 1px solid var(--card-border);
+      padding: 8px 16px;
+      border-radius: 8px;
+      cursor: pointer;
+      font-weight: 600;
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+      font-size: 0.9rem;
+      transition: 0.2s;
+    }
+    .btn-back:hover {
+      background: #374151;
+    }
+
+    .match-hero-card {
+      background: linear-gradient(180deg, #1e293b 0%, #111827 100%);
+      border: 1px solid #334155;
+      border-radius: 16px;
+      padding: 24px;
+      margin-bottom: 24px;
+    }
+    .hero-meta {
+      text-align: center;
+      color: var(--text-muted);
+      font-size: 0.85rem;
+      margin-bottom: 16px;
+    }
+    .hero-vs-grid {
+      display: grid;
+      grid-template-columns: 1fr auto 1fr;
+      align-items: center;
+      gap: 20px;
+      text-align: center;
+    }
+    .hero-team {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 8px;
+    }
+    .hero-team-logo {
+      width: 64px;
+      height: 64px;
+      border-radius: 50%;
+      background: #374151;
+      object-fit: cover;
+      border: 2px solid #475569;
+    }
+    .hero-jersey {
+      width: 44px;
+      height: 44px;
+      object-fit: contain;
+    }
+    .hero-score {
+      font-family: var(--mono);
+      font-size: 1.6rem;
+      font-weight: 800;
+      color: #fbbf24;
+    }
+    .hero-vs {
+      font-size: 1.2rem;
+      font-weight: 800;
+      color: #64748b;
+    }
+    .hero-result-banner {
+      background: rgba(16, 185, 129, 0.1);
+      border: 1px solid rgba(16, 185, 129, 0.2);
+      color: #34d399;
+      padding: 8px 16px;
+      border-radius: 8px;
+      text-align: center;
+      font-weight: 700;
+      font-size: 0.95rem;
+      margin-top: 20px;
+    }
+
+    /* SSE Stream Banner */
+    .sse-control-bar {
+      background: #111827;
+      border: 1px solid var(--card-border);
+      border-radius: 12px;
+      padding: 16px 20px;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-bottom: 24px;
+    }
+    .btn {
+      background: var(--accent);
+      color: #064e3b;
+      font-weight: 700;
+      border: none;
+      padding: 8px 16px;
+      border-radius: 8px;
+      cursor: pointer;
+      font-size: 0.88rem;
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      transition: 0.2s;
+    }
+    .btn:hover { background: #34d399; }
+    .btn-danger { background: #ef4444; color: #fff; }
+    .btn-danger:hover { background: #dc2626; }
+    .btn-outline {
+      background: transparent;
+      color: var(--text);
+      border: 1px solid var(--card-border);
+    }
+    .btn-outline:hover { background: #1f2937; }
+
     .live-dot {
       width: 8px;
       height: 8px;
@@ -128,127 +347,33 @@
       0%, 100% { opacity: 1; transform: scale(1); }
       50% { opacity: 0.4; transform: scale(1.2); }
     }
-    .matches-list {
-      display: flex;
-      flex-direction: column;
-      gap: 12px;
-      max-height: 480px;
-      overflow-y: auto;
+
+    .detail-grid {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 20px;
+      margin-bottom: 24px;
     }
-    .match-item {
-      background: #1e293b55;
-      border: 1px solid #334155;
-      border-radius: 8px;
-      padding: 12px 14px;
-      cursor: pointer;
-      transition: all 0.2s;
+    @media (max-width: 850px) {
+      .detail-grid { grid-template-columns: 1fr; }
+      .hero-vs-grid { grid-template-columns: 1fr; gap: 12px; }
     }
-    .match-item:hover, .match-item.selected {
-      border-color: var(--accent);
-      background: #10b9810a;
-    }
-    .match-header {
-      display: flex;
-      justify-content: space-between;
-      font-size: 0.75rem;
-      color: var(--text-muted);
-      margin-bottom: 8px;
-    }
-    .teams-row {
-      display: flex;
-      justify-content: space-between;
-      align-items: center;
-      margin-bottom: 6px;
-    }
-    .team-info {
-      display: flex;
-      align-items: center;
-      gap: 8px;
-      font-weight: 600;
-      font-size: 0.95rem;
-    }
-    .team-logo {
-      width: 26px;
-      height: 26px;
-      border-radius: 50%;
-      background: #374151;
-      object-fit: cover;
-    }
-    .team-score {
-      font-family: var(--mono);
-      font-weight: 700;
-      font-size: 1rem;
-      color: #fbbf24;
-    }
-    .match-footer {
-      display: flex;
-      justify-content: space-between;
-      align-items: center;
-      font-size: 0.78rem;
-      color: var(--text-muted);
-      border-top: 1px dashed #334155;
-      padding-top: 6px;
-      margin-top: 6px;
-    }
-    .btn {
-      background: var(--accent);
-      color: #064e3b;
-      font-weight: 700;
-      border: none;
-      padding: 8px 14px;
-      border-radius: 6px;
-      cursor: pointer;
-      font-size: 0.85rem;
-      display: inline-flex;
-      align-items: center;
-      gap: 6px;
-      transition: 0.2s;
-    }
-    .btn:hover {
-      background: #34d399;
-    }
-    .btn-outline {
-      background: transparent;
-      color: var(--text);
+
+    .card {
+      background: var(--card-bg);
       border: 1px solid var(--card-border);
+      border-radius: 12px;
+      padding: 20px;
     }
-    .btn-outline:hover {
-      background: #1f2937;
+    .card-title {
+      font-size: 1.05rem;
+      font-weight: 700;
+      margin-bottom: 14px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
     }
-    .btn-danger {
-      background: #dc2626;
-      color: #fff;
-    }
-    .btn-danger:hover {
-      background: #ef4444;
-    }
-    .terminal {
-      background: #030712;
-      border: 1px solid #1f2937;
-      border-radius: 8px;
-      padding: 14px;
-      font-family: var(--mono);
-      font-size: 0.78rem;
-      max-height: 480px;
-      overflow-y: auto;
-      color: #a7f3d0;
-    }
-    .terminal-line {
-      margin-bottom: 6px;
-      word-break: break-all;
-    }
-    .time-badge {
-      color: #6ee7b7;
-      margin-right: 6px;
-    }
-    .event-type {
-      background: #065f46;
-      color: #ecfdf5;
-      padding: 1px 6px;
-      border-radius: 4px;
-      font-size: 0.7rem;
-      margin-right: 6px;
-    }
+
     .player-card {
       display: flex;
       align-items: center;
@@ -271,6 +396,28 @@
       height: 32px;
       object-fit: contain;
     }
+    .terminal {
+      background: #030712;
+      border: 1px solid #1f2937;
+      border-radius: 8px;
+      padding: 14px;
+      font-family: var(--mono);
+      font-size: 0.78rem;
+      max-height: 240px;
+      overflow-y: auto;
+      color: #a7f3d0;
+    }
+    .terminal-line { margin-bottom: 6px; word-break: break-all; }
+    .time-badge { color: #6ee7b7; margin-right: 6px; }
+    .event-type {
+      background: #065f46;
+      color: #ecfdf5;
+      padding: 1px 6px;
+      border-radius: 4px;
+      font-size: 0.7rem;
+      margin-right: 6px;
+    }
+
     .endpoints-table {
       width: 100%;
       border-collapse: collapse;
@@ -282,10 +429,7 @@
       border-bottom: 1px solid var(--card-border);
       font-size: 0.85rem;
     }
-    .endpoints-table th {
-      color: var(--text-muted);
-      font-weight: 600;
-    }
+    .endpoints-table th { color: var(--text-muted); font-weight: 600; }
     .method-badge {
       font-family: var(--mono);
       font-weight: 700;
@@ -295,9 +439,7 @@
       background: #0284c7;
       color: #fff;
     }
-    .method-sse {
-      background: #8b5cf6;
-    }
+    .method-sse { background: #8b5cf6; }
   </style>
 </head>
 <body>
@@ -305,411 +447,532 @@
   <header>
     <div class="brand">
       <span>⚡ LSCORExAPI</span>
-      <span class="brand-badge">v1.0.0</span>
+      <span class="brand-badge">v1.1.0</span>
     </div>
     <div style="display:flex; gap:12px;">
-      <a href="/matches" target="_blank" class="btn btn-outline">Raw JSON</a>
+      <a href="/matches" target="_blank" class="btn btn-outline">JSON Matches</a>
       <a href="https://github.com/badman99dev/LSCORExAPI" target="_blank" class="btn">GitHub Repo ↗</a>
     </div>
   </header>
 
   <div class="container">
-    <div class="hero">
-      <h1>Live Cricket & Sports Scores Engine</h1>
-      <p>High-performance, deduplicated SSE live streaming & REST API reverse-engineered from CREX. Features instant snapshots, ball-by-ball diff updates, Playing XI, player headshots, and team jerseys.</p>
-      <div class="feature-tags">
-        <span class="tag">📡 Infinite SSE Streams (No Timeout)</span>
-        <span class="tag">⚡ Single Upstream Broadcaster</span>
-        <span class="tag">🔄 Snapshot + Delta Diffs</span>
-        <span class="tag">👕 Official Team Jerseys</span>
-        <span class="tag">👤 HD Player Headshots</span>
-        <span class="tag">🏏 Ball-by-Ball Feed</span>
+
+    <!-- VIEW 1: MATCHES LIST PAGE (DEFAULT) -->
+    <div id="matchesListPage">
+      <div class="hero">
+        <h1>Live Cricket & Sports Scores</h1>
+        <p>Reverse-engineered live feeds from CREX with dedicated match score pages, live SSE streaming, and Playing XI.</p>
+      </div>
+
+      <!-- 4 TABS: ALL, LIVE, UPCOMING, FINISHED -->
+      <div class="tabs-bar">
+        <button class="tab-btn active" onclick="switchTab('all')">
+          🌐 All <span id="badge-all" class="tab-badge">0</span>
+        </button>
+        <button class="tab-btn" onclick="switchTab('live')">
+          <span class="live-dot" style="margin-right:2px;"></span> Live <span id="badge-live" class="tab-badge">0</span>
+        </button>
+        <button class="tab-btn" onclick="switchTab('upcoming')">
+          ⏳ Upcoming <span id="badge-upcoming" class="tab-badge">0</span>
+        </button>
+        <button class="tab-btn" onclick="switchTab('finished')">
+          🏁 Finished <span id="badge-finished" class="tab-badge">0</span>
+        </button>
+      </div>
+
+      <!-- Matches Grid -->
+      <div id="matchesGrid" class="matches-grid">
+        <div style="color:var(--text-muted); padding:20px;">Loading matches...</div>
+      </div>
+
+      <!-- API Reference -->
+      <div class="card" style="margin-top:30px;">
+        <div class="card-title">
+          <span>REST & Streaming Endpoints</span>
+        </div>
+        <table class="endpoints-table">
+          <thead>
+            <tr>
+              <th>Method</th>
+              <th>Route</th>
+              <th>Description</th>
+              <th>Action</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr>
+              <td><span class="method-badge">GET</span></td>
+              <td><code>/matches?tab=all|live|upcoming|finished</code></td>
+              <td>Filtered matches list by tab.</td>
+              <td><a href="/matches" target="_blank" class="btn btn-outline" style="padding:2px 8px; font-size:0.75rem;">Open</a></td>
+            </tr>
+            <tr>
+              <td><span class="method-badge">GET</span></td>
+              <td><code>/matches/live</code></td>
+              <td>Live matches with live scores and status.</td>
+              <td><a href="/matches/live" target="_blank" class="btn btn-outline" style="padding:2px 8px; font-size:0.75rem;">Open</a></td>
+            </tr>
+            <tr>
+              <td><span class="method-badge">GET</span></td>
+              <td><code>/matches/upcoming</code></td>
+              <td>Upcoming fixtures with countdown and scheduled dates.</td>
+              <td><a href="/matches/upcoming" target="_blank" class="btn btn-outline" style="padding:2px 8px; font-size:0.75rem;">Open</a></td>
+            </tr>
+            <tr>
+              <td><span class="method-badge">GET</span></td>
+              <td><code>/matches/finished</code></td>
+              <td>Finished matches with results, winners, and scores.</td>
+              <td><a href="/matches/finished" target="_blank" class="btn btn-outline" style="padding:2px 8px; font-size:0.75rem;">Open</a></td>
+            </tr>
+            <tr>
+              <td><span class="method-badge method-sse">SSE</span></td>
+              <td><code>/matches/:id/stream</code></td>
+              <td>Infinite SSE stream. Real-time snapshot + delta diffs.</td>
+              <td><span style="color:#38bdf8; font-size:0.75rem;">Per Match</span></td>
+            </tr>
+            <tr>
+              <td><span class="method-badge">GET</span></td>
+              <td><code>/matches/:id/squad</code></td>
+              <td>Both teams Playing XI and full squad with photos & jerseys.</td>
+              <td><span style="color:#6b7280; font-size:0.75rem;">Squad</span></td>
+            </tr>
+            <tr>
+              <td><span class="method-badge">GET</span></td>
+              <td><code>/stats</code></td>
+              <td>Active SSE clients & worker broadcaster pool.</td>
+              <td><a href="/stats" target="_blank" class="btn btn-outline" style="padding:2px 8px; font-size:0.75rem;">Stats</a></td>
+            </tr>
+          </tbody>
+        </table>
       </div>
     </div>
 
-    <!-- Live Console Grid -->
-    <div class="grid-2">
-      <!-- Matches Column -->
+
+    <!-- VIEW 2: DEDICATED MATCH SCORE PAGE -->
+    <div id="matchScorePage">
+      <div class="back-nav">
+        <button class="btn-back" onclick="closeMatchPage()">
+          ← Back to Matches
+        </button>
+      </div>
+
+      <!-- Large Match Score Header Card -->
+      <div id="matchHeroCard" class="match-hero-card">
+        <!-- Rendered dynamically -->
+      </div>
+
+      <!-- Realtime SSE Stream Controller -->
+      <div class="sse-control-bar">
+        <div style="display:flex; align-items:center; gap:10px;">
+          <span id="sseDot" class="live-dot" style="display:none;"></span>
+          <div>
+            <div style="font-weight:700; font-size:0.95rem;">⚡ Real-time SSE Stream</div>
+            <div id="sseStatusText" style="font-size:0.78rem; color:var(--text-muted); font-family:var(--mono);">Stream is idle (click to start)</div>
+          </div>
+        </div>
+        <div>
+          <button id="toggleSseBtn" class="btn" onclick="toggleSSE()">⚡ Start Live Stream</button>
+        </div>
+      </div>
+
+      <!-- Live Stream Console Ticker -->
+      <div class="card" style="margin-bottom:24px;">
+        <div class="card-title">
+          <span>Live Ticker / Delta Updates</span>
+          <button class="btn btn-outline" onclick="document.getElementById('sseTerminal').innerHTML=''" style="padding:2px 8px; font-size:0.75rem;">Clear</button>
+        </div>
+        <div id="sseTerminal" class="terminal">
+          <div class="terminal-line" style="color:#9ca3af;">Click "Start Live Stream" above to listen to ball-by-ball updates.</div>
+        </div>
+      </div>
+
+      <!-- Pitch details & Score breakdown -->
+      <div class="detail-grid">
+        <!-- Batters on Crease -->
+        <div class="card">
+          <div class="card-title">🏏 Batters on Crease</div>
+          <div id="battersBox">
+            <div style="color:var(--text-muted); font-size:0.85rem;">Select or stream match to see batters.</div>
+          </div>
+        </div>
+
+        <!-- Current Bowler -->
+        <div class="card">
+          <div class="card-title">🎯 Current Bowler</div>
+          <div id="bowlerBox">
+            <div style="color:var(--text-muted); font-size:0.85rem;">Select or stream match to see bowler.</div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Recent Deliveries Strip -->
+      <div id="recentDeliveriesCard" class="card" style="margin-bottom:24px; display:none;">
+        <div class="card-title">⚡ Recent Deliveries (Ball Feed)</div>
+        <div id="recentBallsBox" style="display:flex; gap:8px; flex-wrap:wrap;"></div>
+      </div>
+
+      <!-- Playing XI & Squad Section -->
       <div class="card">
         <div class="card-title">
-          <span>Active Matches</span>
-          <button class="btn btn-outline" onclick="loadMatches()" style="padding:4px 8px; font-size:0.75rem;">↻ Refresh</button>
+          <span>👕 Playing XI & Squad</span>
+          <button class="btn btn-outline" id="loadSquadBtn" onclick="loadSquad()">↻ Refresh Squad</button>
         </div>
-        <div id="matchesContainer" class="matches-list">
-          <div style="color:var(--text-muted); font-size:0.85rem;">Loading matches...</div>
+        <div id="squadDetailsBox">
+          <div style="color:var(--text-muted); font-size:0.85rem;">Click below or refresh to load Playing XI.</div>
         </div>
       </div>
 
-      <!-- Realtime SSE Stream Column -->
-      <div class="card">
-        <div class="card-title">
-          <div style="display:flex; align-items:center; gap:8px;">
-            <span class="live-dot" id="liveDot" style="display:none;"></span>
-            <span>Real-time SSE Stream</span>
-          </div>
-          <div style="display:flex; align-items:center; gap:8px;">
-            <span id="sseStatus" style="font-size:0.75rem; color:#9ca3af; font-family:var(--mono);">Idle (No match selected)</span>
-            <button id="stopSseBtn" class="btn btn-outline btn-danger" onclick="disconnectSSE()" style="display:none; padding:2px 8px; font-size:0.75rem;">⏹ Disconnect</button>
-          </div>
-        </div>
-        <div id="terminal" class="terminal">
-          <div class="terminal-line" style="color:#9ca3af;">👈 Click any match on the left to start live SSE stream for that match.</div>
-        </div>
-      </div>
-    </div>
-
-    <!-- Match Details & Squad Inspector -->
-    <div id="matchDetailSection" class="card" style="display:none; margin-bottom:36px;">
-      <div class="card-title">
-        <span id="detailTitle">Match Overview</span>
-        <div style="display:flex; gap:8px;">
-          <button class="btn btn-outline" id="loadSquadBtn" onclick="toggleSquad()">👕 View Squad / Playing XI</button>
-        </div>
-      </div>
-      <div id="detailContent"></div>
-      <div id="squadContainer" style="display:none; margin-top:20px; border-top:1px solid #1f2937; padding-top:20px;"></div>
-    </div>
-
-    <!-- API Endpoints Reference -->
-    <div class="card">
-      <div class="card-title">
-        <span>REST & Streaming Endpoints</span>
-      </div>
-      <table class="endpoints-table">
-        <thead>
-          <tr>
-            <th>Method</th>
-            <th>Route</th>
-            <th>Description</th>
-            <th>Action</th>
-          </tr>
-        </thead>
-        <tbody>
-          <tr>
-            <td><span class="method-badge method-sse">SSE</span></td>
-            <td><code>/matches/:id/stream</code></td>
-            <td>Infinite SSE stream for a specific match. Sends initial snapshot then live diffs on every ball.</td>
-            <td><span style="color:#38bdf8; font-size:0.75rem;">On-Demand</span></td>
-          </tr>
-          <tr>
-            <td><span class="method-badge">GET</span></td>
-            <td><code>/matches</code></td>
-            <td>List all active and recent matches with live scores and logos.</td>
-            <td><a href="/matches" target="_blank" class="btn btn-outline" style="padding:2px 8px; font-size:0.75rem;">Open</a></td>
-          </tr>
-          <tr>
-            <td><span class="method-badge">GET</span></td>
-            <td><code>/matches/live</code></td>
-            <td>Filtered list of currently live matches.</td>
-            <td><a href="/matches/live" target="_blank" class="btn btn-outline" style="padding:2px 8px; font-size:0.75rem;">Open</a></td>
-          </tr>
-          <tr>
-            <td><span class="method-badge">GET</span></td>
-            <td><code>/matches/:id</code></td>
-            <td>Match details, striker/bowler stats with headshot images and jerseys.</td>
-            <td><span style="color:#6b7280; font-size:0.75rem;">Detail</span></td>
-          </tr>
-          <tr>
-            <td><span class="method-badge">GET</span></td>
-            <td><code>/matches/:id/squad</code></td>
-            <td>Both teams' Playing XI and full squad with player photos and jerseys.</td>
-            <td><span style="color:#6b7280; font-size:0.75rem;">Squad</span></td>
-          </tr>
-          <tr>
-            <td><span class="method-badge">GET</span></td>
-            <td><code>/matches/:id/commentary</code></td>
-            <td>Ball-by-ball commentary, shot types, wagons, and fall of wickets.</td>
-            <td><span style="color:#6b7280; font-size:0.75rem;">Feed</span></td>
-          </tr>
-          <tr>
-            <td><span class="method-badge">GET</span></td>
-            <td><code>/matches/:id/scorecard</code></td>
-            <td>Structured scorecard breakdown for both innings.</td>
-            <td><span style="color:#6b7280; font-size:0.75rem;">Scorecard</span></td>
-          </tr>
-          <tr>
-            <td><span class="method-badge">GET</span></td>
-            <td><code>/stats</code></td>
-            <td>Broadcaster metrics: active clients, watched matches, worker pool.</td>
-            <td><a href="/stats" target="_blank" class="btn btn-outline" style="padding:2px 8px; font-size:0.75rem;">View</a></td>
-          </tr>
-          <tr>
-            <td><span class="method-badge">GET</span></td>
-            <td><code>/health</code></td>
-            <td>Uptime & server health check.</td>
-            <td><a href="/health" target="_blank" class="btn btn-outline" style="padding:2px 8px; font-size:0.75rem;">Health</a></td>
-          </tr>
-        </tbody>
-      </table>
     </div>
 
   </div>
 
   <script>
-    let activeEventSource = null;
-    let selectedMatchId = null;
+    let currentTab = "all";
+    let allMatchesData = { all: [], live: [], upcoming: [], finished: [] };
+    let activeMatchId = null;
+    let eventSource = null;
 
-    async function loadMatches() {
-      const container = document.getElementById('matchesContainer');
+    async function fetchMatches() {
       try {
-        const res = await fetch('/matches');
-        const json = await res.json();
-        if (!json.success || !json.matches.length) {
-          container.innerHTML = '<div style="color:#9ca3af; padding:12px;">No active matches right now.</div>';
-          return;
-        }
+        const [liveRes, upRes, finRes] = await Promise.all([
+          fetch("/matches/live").then(r => r.json()).catch(() => ({ matches: [] })),
+          fetch("/matches/upcoming").then(r => r.json()).catch(() => ({ matches: [] })),
+          fetch("/matches/finished").then(r => r.json()).catch(() => ({ matches: [] })),
+        ]);
 
-        container.innerHTML = json.matches.map((m) => `
-          <div class="match-item ${selectedMatchId === m.id ? 'selected' : ''}" onclick="selectMatch('${m.id}')">
-            <div class="match-header">
-              <span>${m.series || 'Cricket Match'}</span>
-              <span style="color:#10b981; font-weight:600;">${m.statusText || 'LIVE'}</span>
-            </div>
-            <div class="teams-row">
-              <div class="team-info">
-                <img src="${m.teams.team1.logo || ''}" class="team-logo" onerror="this.style.display='none'">
-                <span>${m.teams.team1.name || m.teams.team1.code}</span>
+        allMatchesData.live = liveRes.matches || [];
+        allMatchesData.upcoming = upRes.matches || [];
+        allMatchesData.finished = finRes.matches || [];
+        allMatchesData.all = [...allMatchesData.live, ...allMatchesData.upcoming, ...allMatchesData.finished];
+
+        document.getElementById("badge-all").textContent = allMatchesData.all.length;
+        document.getElementById("badge-live").textContent = allMatchesData.live.length;
+        document.getElementById("badge-upcoming").textContent = allMatchesData.upcoming.length;
+        document.getElementById("badge-finished").textContent = allMatchesData.finished.length;
+
+        renderGrid();
+      } catch (err) {
+        document.getElementById("matchesGrid").innerHTML = "<div style='color:#ef4444;'>Failed to load matches: " + err.message + "</div>";
+      }
+    }
+
+    function switchTab(tab) {
+      currentTab = tab;
+      document.querySelectorAll(".tab-btn").forEach(b => b.classList.remove("active"));
+      event.currentTarget.classList.add("active");
+      renderGrid();
+    }
+
+    function renderGrid() {
+      const container = document.getElementById("matchesGrid");
+      const list = allMatchesData[currentTab] || [];
+
+      if (!list.length) {
+        container.innerHTML = `<div style="color:var(--text-muted); grid-column:1/-1; padding:24px;">No matches found in ${currentTab} tab.</div>`;
+        return;
+      }
+
+      container.innerHTML = list.map((m) => {
+        let badgeClass = "status-live";
+        if (m.tab === "upcoming" || m.status === "upcoming") badgeClass = "status-upcoming";
+        else if (m.tab === "finished" || m.status === "finished") badgeClass = "status-finished";
+
+        return `
+          <div class="match-card" onclick="openMatchPage('${m.id}')">
+            <div>
+              <div class="match-card-header">
+                <span>${m.series || "Cricket Tournament"}</span>
+                <span class="status-badge ${badgeClass}">${m.statusText || m.status || "Match"}</span>
               </div>
-              <span class="team-score">${m.teams.team1.scoreRaw || '--'}</span>
-            </div>
-            <div class="teams-row">
-              <div class="team-info">
-                <img src="${m.teams.team2.logo || ''}" class="team-logo" onerror="this.style.display='none'">
-                <span>${m.teams.team2.name || m.teams.team2.code}</span>
+              <div class="team-row">
+                <div class="team-title">
+                  <img src="${m.teams?.team1?.logo || ""}" class="team-flag" onerror="this.style.display='none'">
+                  <span>${m.teams?.team1?.name || m.teams?.team1?.code || "Team 1"}</span>
+                </div>
+                <div class="team-score-num">${m.teams?.team1?.scoreRaw || "--"}</div>
               </div>
-              <span class="team-score">${m.teams.team2.scoreRaw || '--'}</span>
+              <div class="team-row">
+                <div class="team-title">
+                  <img src="${m.teams?.team2?.logo || ""}" class="team-flag" onerror="this.style.display='none'">
+                  <span>${m.teams?.team2?.name || m.teams?.team2?.code || "Team 2"}</span>
+                </div>
+                <div class="team-score-num">${m.teams?.team2?.scoreRaw || "--"}</div>
+              </div>
             </div>
-            <div class="match-footer">
-              <span>📍 ${m.venue || 'Live Stadium'}</span>
-              <span style="color:#38bdf8;">Match ID: ${m.id}</span>
+            <div class="card-footer">
+              <span>📍 ${m.venue || "Stadium"}</span>
+              <span style="color:#38bdf8; font-weight:600;">View Score ➔</span>
             </div>
           </div>
-        `).join('');
-
-        // NOTE: We do NOT auto-select or auto-stream on page load.
-        // User must explicitly click a match to connect SSE.
-      } catch (e) {
-        container.innerHTML = '<div style="color:#ef4444; padding:12px;">Error loading matches: ' + e.message + '</div>';
-      }
+        `;
+      }).join("");
     }
 
-    function selectMatch(id) {
-      selectedMatchId = id;
-      document.querySelectorAll('.match-item').forEach(el => el.classList.remove('selected'));
-      const activeEl = document.querySelector(`.match-item[onclick*="${id}"]`);
-      if (activeEl) activeEl.classList.add('selected');
-      loadMatchDetail(id);
-      connectSSE(id);
+    // Navigation: Open next page for match score
+    async function openMatchPage(id) {
+      activeMatchId = id;
+      document.getElementById("matchesListPage").style.display = "none";
+      document.getElementById("matchScorePage").style.display = "block";
+      window.scrollTo({ top: 0, behavior: "smooth" });
+
+      loadMatchDetails(id);
+      loadSquad();
     }
 
-    function logTerminal(type, text) {
-      const term = document.getElementById('terminal');
-      const time = new Date().toTimeString().split(' ')[0];
-      const div = document.createElement('div');
-      div.className = 'terminal-line';
-      div.innerHTML = `<span class="time-badge">[${time}]</span><span class="event-type">${type}</span>${text}`;
-      term.appendChild(div);
-      term.scrollTop = term.scrollHeight;
+    function closeMatchPage() {
+      stopSSE();
+      activeMatchId = null;
+      document.getElementById("matchScorePage").style.display = "none";
+      document.getElementById("matchesListPage").style.display = "block";
     }
 
-    function disconnectSSE() {
-      if (activeEventSource) {
-        activeEventSource.close();
-        activeEventSource = null;
-      }
-      document.getElementById('sseStatus').textContent = 'Disconnected';
-      document.getElementById('sseStatus').style.color = '#9ca3af';
-      document.getElementById('liveDot').style.display = 'none';
-      document.getElementById('stopSseBtn').style.display = 'none';
-      logTerminal('DISCONNECT', 'SSE stream closed by user.');
-    }
-
-    function connectSSE(id) {
-      disconnectSSE();
-
-      const term = document.getElementById('terminal');
-      term.innerHTML = '';
-      const statusEl = document.getElementById('sseStatus');
-      const liveDot = document.getElementById('liveDot');
-      const stopBtn = document.getElementById('stopSseBtn');
-
-      statusEl.textContent = `Connecting to match ${id}...`;
-      statusEl.style.color = '#fbbf24';
-      liveDot.style.display = 'inline-block';
-      stopBtn.style.display = 'inline-flex';
-
-      logTerminal('CONNECT', `Opening SSE stream for match: ${id}`);
-      activeEventSource = new EventSource(`/matches/${id}/stream`);
-
-      activeEventSource.onopen = () => {
-        statusEl.textContent = `Streaming (${id})`;
-        statusEl.style.color = '#10b981';
-        logTerminal('OPEN', `SSE Stream established for match ${id}. Listening for ball changes...`);
-      };
-
-      activeEventSource.addEventListener('snapshot', (e) => {
-        const payload = JSON.parse(e.data);
-        logTerminal('SNAPSHOT', `Initial snapshot received for match ${id}`);
-        if (payload.match) renderRichMatch(payload.match);
-      });
-
-      activeEventSource.addEventListener('update', (e) => {
-        const payload = JSON.parse(e.data);
-        const changeStr = (payload.changes || []).map(c => `${c.path}: ${c.from} ➔ ${c.to}`).join(', ');
-        logTerminal('UPDATE', `⚡ Live Delta: ${changeStr || 'Match state refreshed'}`);
-        if (payload.match) renderRichMatch(payload.match);
-      });
-
-      activeEventSource.onerror = () => {
-        statusEl.textContent = 'Reconnecting...';
-        statusEl.style.color = '#ef4444';
-      };
-    }
-
-    async function loadMatchDetail(id) {
-      const section = document.getElementById('matchDetailSection');
-      section.style.display = 'block';
+    async function loadMatchDetails(id) {
       try {
         const res = await fetch(`/matches/${id}`);
-        const data = await res.json();
-        if (data.success && data.match) {
-          renderRichMatch(data.match);
+        const json = await res.json();
+        if (json.success && json.match) {
+          renderMatchScore(json.match);
         }
       } catch (_) {}
     }
 
-    function renderRichMatch(match) {
-      const content = document.getElementById('detailContent');
+    function renderMatchScore(match) {
+      const hero = document.getElementById("matchHeroCard");
+      const t1 = match.teams?.team1 || {};
+      const t2 = match.teams?.team2 || {};
       const r = match.rich || {};
-      const striker = r.striker;
-      const bowler = r.bowler;
 
-      let battersHtml = '';
-      if (striker) {
-        battersHtml = `
-          <div style="flex:1;">
-            <div style="font-size:0.75rem; color:#9ca3af; margin-bottom:4px;">BATTERS ON CREASE</div>
-            <div class="player-card">
-              <img src="${striker.head || ''}" class="player-head" onerror="this.style.display='none'">
-              <img src="${striker.jersey || ''}" class="jersey-thumb" onerror="this.style.display='none'">
-              <div>
-                <div style="font-weight:700;">${striker.name || 'Striker'} *</div>
-                <div style="font-family:var(--mono); color:#fbbf24; font-size:0.9rem;">${striker.runs ?? 0} runs (${striker.balls ?? 0}b) • 4s: ${striker.fours ?? 0} • 6s: ${striker.sixes ?? 0}</div>
-              </div>
-            </div>
-            ${r.nonStriker ? `
-            <div class="player-card">
-              <img src="${r.nonStriker.head || ''}" class="player-head" onerror="this.style.display='none'">
-              <img src="${r.nonStriker.jersey || ''}" class="jersey-thumb" onerror="this.style.display='none'">
-              <div>
-                <div style="font-weight:700;">${r.nonStriker.name || 'Non-Striker'}</div>
-                <div style="font-family:var(--mono); color:#fbbf24; font-size:0.9rem;">${r.nonStriker.runs ?? 0} runs (${r.nonStriker.balls ?? 0}b)</div>
-              </div>
-            </div>
-            ` : ''}
-          </div>
-        `;
-      }
-
-      let bowlerHtml = '';
-      if (bowler) {
-        bowlerHtml = `
-          <div style="flex:1;">
-            <div style="font-size:0.75rem; color:#9ca3af; margin-bottom:4px;">CURRENT BOWLER</div>
-            <div class="player-card">
-              <img src="${bowler.head || ''}" class="player-head" onerror="this.style.display='none'">
-              <img src="${bowler.jersey || ''}" class="jersey-thumb" onerror="this.style.display='none'">
-              <div>
-                <div style="font-weight:700;">${bowler.name}</div>
-                <div style="font-family:var(--mono); color:#38bdf8; font-size:0.9rem;">Overs: ${bowler.overs || '--'} • M: ${bowler.maidens ?? 0} • R: ${bowler.runs ?? 0} • W: ${bowler.wickets ?? 0} • Econ: ${bowler.economy || '--'}</div>
-              </div>
-            </div>
-            ${r.partnership ? `
-            <div style="background:#1e293b; padding:10px 14px; border-radius:8px; font-size:0.85rem; color:#d1d5db;">
-              🤝 Partnership: <strong>${r.partnership.runs}</strong> runs (${r.partnership.balls} balls)
-            </div>
-            ` : ''}
-          </div>
-        `;
-      }
-
-      content.innerHTML = `
-        <div style="display:flex; flex-wrap:wrap; gap:16px; margin-bottom:16px;">
-          ${battersHtml}
-          ${bowlerHtml}
+      hero.innerHTML = `
+        <div class="hero-meta">
+          <div>${match.series || ""} ${match.matchDesc ? "• " + match.matchDesc : ""} ${match.format ? "• " + match.format : ""}</div>
+          <div>📍 ${match.venue || "Live Cricket"}</div>
         </div>
-        ${r.recentBalls && r.recentBalls.length ? `
-          <div style="margin-top:12px;">
-            <div style="font-size:0.75rem; color:#9ca3af; margin-bottom:6px;">RECENT DELIVERIES (BALL FEED)</div>
-            <div style="display:flex; gap:6px; flex-wrap:wrap;">
-              ${r.recentBalls.slice(0, 12).map(b => `
-                <span class="tag" style="background:${b.text === '4' || b.text === '6' ? '#047857' : b.text === 'w' ? '#b91c1c' : '#1f2937'}; color:#fff; font-family:var(--mono);">
-                  ${b.over}: ${b.text}
-                </span>
-              `).join('')}
+        <div class="hero-vs-grid">
+          <div class="hero-team">
+            <img src="${t1.logo || ""}" class="hero-team-logo" onerror="this.style.display='none'">
+            <div style="font-weight:700; font-size:1.15rem;">${t1.name || t1.code}</div>
+            <div class="hero-score">${t1.scoreRaw || "--"}</div>
+            ${t1.jersey ? `<img src="${t1.jersey}" class="hero-jersey" title="Official Jersey" onerror="this.style.display='none'">` : ""}
+          </div>
+          <div>
+            <div class="hero-vs">VS</div>
+            <div style="font-size:0.85rem; color:#9ca3af; margin-top:4px;">${match.statusText || "LIVE"}</div>
+          </div>
+          <div class="hero-team">
+            <img src="${t2.logo || ""}" class="hero-team-logo" onerror="this.style.display='none'">
+            <div style="font-weight:700; font-size:1.15rem;">${t2.name || t2.code}</div>
+            <div class="hero-score">${t2.scoreRaw || "--"}</div>
+            ${t2.jersey ? `<img src="${t2.jersey}" class="hero-jersey" title="Official Jersey" onerror="this.style.display='none'">` : ""}
+          </div>
+        </div>
+        ${match.statusText ? `<div class="hero-result-banner">${match.statusText}</div>` : ""}
+      `;
+
+      // Render Batters
+      const battersBox = document.getElementById("battersBox");
+      if (r.striker) {
+        battersBox.innerHTML = `
+          <div class="player-card">
+            <img src="${r.striker.head || ""}" class="player-head" onerror="this.style.display='none'">
+            <img src="${r.striker.jersey || ""}" class="jersey-thumb" onerror="this.style.display='none'">
+            <div style="flex:1;">
+              <div style="font-weight:700;">${r.striker.name || "Striker"} *</div>
+              <div style="font-family:var(--mono); color:#fbbf24; font-size:0.9rem;">
+                ${r.striker.runs ?? 0} runs (${r.striker.balls ?? 0}b) • 4s: ${r.striker.fours ?? 0} • 6s: ${r.striker.sixes ?? 0}
+              </div>
             </div>
           </div>
-        ` : ''}
-      `;
+          ${r.nonStriker ? `
+          <div class="player-card">
+            <img src="${r.nonStriker.head || ""}" class="player-head" onerror="this.style.display='none'">
+            <img src="${r.nonStriker.jersey || ""}" class="jersey-thumb" onerror="this.style.display='none'">
+            <div style="flex:1;">
+              <div style="font-weight:700;">${r.nonStriker.name || "Non-Striker"}</div>
+              <div style="font-family:var(--mono); color:#fbbf24; font-size:0.9rem;">
+                ${r.nonStriker.runs ?? 0} runs (${r.nonStriker.balls ?? 0}b)
+              </div>
+            </div>
+          </div>
+          ` : ""}
+          ${r.partnership ? `
+          <div style="background:#1e293b; padding:8px 12px; border-radius:6px; font-size:0.8rem; color:#94a3b8; margin-top:8px;">
+            🤝 Partnership: <strong>${r.partnership.runs}</strong> runs (${r.partnership.balls}b)
+          </div>
+          ` : ""}
+        `;
+      } else {
+        battersBox.innerHTML = "<div style='color:#9ca3af; font-size:0.85rem;'>No live batters currently on crease.</div>";
+      }
+
+      // Render Bowler
+      const bowlerBox = document.getElementById("bowlerBox");
+      if (r.bowler) {
+        bowlerBox.innerHTML = `
+          <div class="player-card">
+            <img src="${r.bowler.head || ""}" class="player-head" onerror="this.style.display='none'">
+            <img src="${r.bowler.jersey || ""}" class="jersey-thumb" onerror="this.style.display='none'">
+            <div style="flex:1;">
+              <div style="font-weight:700;">${r.bowler.name}</div>
+              <div style="font-family:var(--mono); color:#38bdf8; font-size:0.9rem;">
+                Overs: ${r.bowler.overs || "--"} • M: ${r.bowler.maidens ?? 0} • R: ${r.bowler.runs ?? 0} • W: ${r.bowler.wickets ?? 0}
+              </div>
+              <div style="font-size:0.75rem; color:#9ca3af;">Economy: ${r.bowler.economy || "--"}</div>
+            </div>
+          </div>
+          <div style="display:flex; gap:12px; font-size:0.85rem; color:#cbd5e1; margin-top:8px;">
+            ${r.crr ? `<div>CRR: <strong>${r.crr}</strong></div>` : ""}
+            ${r.rrr ? `<div>RRR: <strong>${r.rrr}</strong></div>` : ""}
+            ${r.target ? `<div>Target: <strong>${r.target}</strong></div>` : ""}
+          </div>
+        `;
+      } else {
+        bowlerBox.innerHTML = "<div style='color:#9ca3af; font-size:0.85rem;'>No active bowler details.</div>";
+      }
+
+      // Recent Deliveries
+      const deliveriesCard = document.getElementById("recentDeliveriesCard");
+      const ballsBox = document.getElementById("recentBallsBox");
+      if (r.recentBalls && r.recentBalls.length) {
+        deliveriesCard.style.display = "block";
+        ballsBox.innerHTML = r.recentBalls.slice(0, 16).map(b => `
+          <span style="background:${b.text === "4" || b.text === "6" ? "#047857" : b.text === "w" ? "#b91c1c" : "#1f2937"}; color:#fff; padding:3px 8px; border-radius:6px; font-family:var(--mono); font-size:0.75rem;">
+            ${b.over}: ${b.text}
+          </span>
+        `).join("");
+      } else {
+        deliveriesCard.style.display = "none";
+      }
     }
 
-    async function toggleSquad() {
-      const box = document.getElementById('squadContainer');
-      if (box.style.display === 'block') {
-        box.style.display = 'none';
-        return;
-      }
-      box.style.display = 'block';
-      box.innerHTML = '<div style="color:#9ca3af;">Loading Playing XI & Squad...</div>';
-
+    async function loadSquad() {
+      const box = document.getElementById("squadDetailsBox");
+      box.innerHTML = "<div style='color:#9ca3af;'>Loading Playing XI & Squad...</div>";
       try {
-        const res = await fetch(`/matches/${selectedMatchId}/squad`);
+        const res = await fetch(`/matches/${activeMatchId}/squad`);
         const json = await res.json();
         if (!json.success || !json.squad) {
-          box.innerHTML = '<div style="color:#ef4444;">Squad information not yet announced for this match.</div>';
+          box.innerHTML = "<div style='color:#9ca3af;'>Squad not yet announced for this match.</div>";
           return;
         }
 
         const sq = json.squad;
         const renderTeam = (t) => `
-          <div style="flex:1; min-width:300px;">
+          <div style="flex:1; min-width:280px;">
             <div style="display:flex; align-items:center; gap:8px; margin-bottom:12px;">
-              <img src="${t.flag || ''}" style="width:28px; height:28px; border-radius:50%;" onerror="this.style.display='none'">
-              <img src="${t.jersey || ''}" style="width:28px; height:28px; object-fit:contain;" onerror="this.style.display='none'">
-              <h3 style="font-size:1.05rem;">${t.name || t.code} (${t.playersCount} players)</h3>
+              <img src="${t.flag || ""}" style="width:28px; height:28px; border-radius:50%;" onerror="this.style.display='none'">
+              <img src="${t.jersey || ""}" style="width:28px; height:28px; object-fit:contain;" onerror="this.style.display='none'">
+              <h3 style="font-size:1rem; font-weight:700;">${t.name || t.code} (${t.playersCount || 0} Players)</h3>
             </div>
             <div style="display:flex; flex-direction:column; gap:6px;">
               ${(t.players || []).map(p => `
                 <div class="player-card" style="padding:6px 10px; margin-bottom:4px;">
-                  <img src="${p.head || ''}" style="width:36px; height:36px; border-radius:50%; object-fit:cover;" onerror="this.style.display='none'">
+                  <img src="${p.head || ""}" style="width:34px; height:34px; border-radius:50%; object-fit:cover;" onerror="this.style.display='none'">
                   <div style="flex:1;">
                     <div style="font-weight:600; font-size:0.85rem;">
                       ${p.name || p.fkey}
-                      ${p.captain ? '<span style="color:#fbbf24; font-size:0.75rem;">(C)</span>' : ''}
-                      ${p.keeper ? '<span style="color:#38bdf8; font-size:0.75rem;">(WK)</span>' : ''}
+                      ${p.captain ? "<span style='color:#fbbf24; font-size:0.72rem;'>(C)</span>" : ""}
+                      ${p.keeper ? "<span style='color:#38bdf8; font-size:0.72rem;'>(WK)</span>" : ""}
                     </div>
-                    <div style="font-size:0.75rem; color:#9ca3af;">${p.role}</div>
+                    <div style="font-size:0.72rem; color:#9ca3af;">${p.role}</div>
                   </div>
-                  <img src="${p.jersey || ''}" style="width:24px; height:24px; object-fit:contain;" onerror="this.style.display='none'">
+                  <img src="${p.jersey || ""}" style="width:22px; height:22px; object-fit:contain;" onerror="this.style.display='none'">
                 </div>
-              `).join('')}
+              `).join("")}
             </div>
           </div>
         `;
 
         box.innerHTML = `
-          <h3 style="margin-bottom:14px; color:#10b981;">📋 ${sq.kind} (Playing Lineup & Squad)</h3>
-          <div style="display:flex; flex-wrap:wrap; gap:24px;">
+          <div style="margin-bottom:12px; color:#10b981; font-weight:700;">📋 ${sq.kind} (Lineup)</div>
+          <div style="display:flex; flex-wrap:wrap; gap:20px;">
             ${renderTeam(sq.teams.team1)}
             ${renderTeam(sq.teams.team2)}
           </div>
         `;
       } catch (err) {
-        box.innerHTML = '<div style="color:#ef4444;">Failed to fetch squad: ' + err.message + '</div>';
+        box.innerHTML = "<div style='color:#ef4444;'>Squad error: " + err.message + "</div>";
       }
     }
 
-    loadMatches();
+    function toggleSSE() {
+      if (eventSource) {
+        stopSSE();
+      } else {
+        startSSE();
+      }
+    }
+
+    function startSSE() {
+      stopSSE();
+      const dot = document.getElementById("sseDot");
+      const text = document.getElementById("sseStatusText");
+      const btn = document.getElementById("toggleSseBtn");
+
+      dot.style.display = "inline-block";
+      text.textContent = "Streaming live ball-by-ball updates...";
+      text.style.color = "#10b981";
+      btn.textContent = "⏹ Stop Stream";
+      btn.className = "btn btn-danger";
+
+      logTerminal("CONNECT", `Connecting to /matches/${activeMatchId}/stream`);
+      eventSource = new EventSource(`/matches/${activeMatchId}/stream`);
+
+      eventSource.onopen = () => {
+        logTerminal("OPEN", "Stream connected. Listening for updates...");
+      };
+
+      eventSource.addEventListener("snapshot", (e) => {
+        const payload = JSON.parse(e.data);
+        logTerminal("SNAPSHOT", "Snapshot packet received");
+        if (payload.match) renderMatchScore(payload.match);
+      });
+
+      eventSource.addEventListener("update", (e) => {
+        const payload = JSON.parse(e.data);
+        const changes = (payload.changes || []).map(c => c.path + ": " + c.from + " ➔ " + c.to).join(", ");
+        logTerminal("UPDATE", "⚡ Live Delta: " + (changes || "Score updated"));
+        if (payload.match) renderMatchScore(payload.match);
+      });
+
+      eventSource.onerror = () => {
+        text.textContent = "Reconnecting...";
+        text.style.color = "#ef4444";
+      };
+    }
+
+    function stopSSE() {
+      if (eventSource) {
+        eventSource.close();
+        eventSource = null;
+      }
+      const dot = document.getElementById("sseDot");
+      const text = document.getElementById("sseStatusText");
+      const btn = document.getElementById("toggleSseBtn");
+
+      if (dot) dot.style.display = "none";
+      if (text) {
+        text.textContent = "Stream is idle (click to start)";
+        text.style.color = "var(--text-muted)";
+      }
+      if (btn) {
+        btn.textContent = "⚡ Start Live Stream";
+        btn.className = "btn";
+      }
+      logTerminal("DISCONNECT", "SSE stream stopped.");
+    }
+
+    function logTerminal(type, text) {
+      const term = document.getElementById("sseTerminal");
+      if (!term) return;
+      const time = new Date().toTimeString().split(" ")[0];
+      const div = document.createElement("div");
+      div.className = "terminal-line";
+      div.innerHTML = `<span class="time-badge">[${time}]</span><span class="event-type">${type}</span>${text}`;
+      term.appendChild(div);
+      term.scrollTop = term.scrollHeight;
+    }
+
+    fetchMatches();
   </script>
 </body>
 </html>

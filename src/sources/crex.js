@@ -2,7 +2,8 @@
  * CREX Data Adapter
  *
  * Reverse-engineered live cricket endpoints:
- * - Scores: api.goscorer.com/api/v3/getLiveMatches
+ * - Live Scores: api.goscorer.com/api/v3/getLiveMatches
+ * - Upcoming & Finished Matches: oc.crickapi.com/oc/getHomeUpcomingMatchesCE (type 1 = upcoming, type 0 = finished)
  * - Identity & metadata: crex.com homepage SSR blob
  * - Match detail & ball feed: crex.com/cricket-live-score/<slug> (app-root-state)
  * - Squad & Playing XI: api.goscorer.com/api/v3/getIV4?key=<CODE>
@@ -20,6 +21,15 @@ const LIVE_URL = 'https://api.goscorer.com/api/v3/getLiveMatches';
 const HOME_URL = 'https://crex.com/';
 const IV4_URL = 'https://api.goscorer.com/api/v3/getIV4?key=';
 const MAPDATA_URL = 'https://oc.crickapi.com/mapping/getHomeMapData';
+const UPCOMING_URL = 'https://oc.crickapi.com/oc/getHomeUpcomingMatchesCE';
+
+const UPCOMING_HEADERS = {
+  'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36',
+  'Content-Type': 'application/json',
+  'Version': '96.0.0',
+  'cc': 'IN',
+  'authorization': 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCIsImV4cGlyZXNJbiI6IjM2NWQifQ.eyJ0aW1lIjoxNjYwMDQ2NjIwMDAwfQ.bTEmMWlR7hLRUHxPPq6-1TP7cuuW7m6sZ9jcdbYzLRA',
+};
 
 export const ASSETS = {
   TEAM_LOGO: (code) => code ? `https://cricketvectors.akamaized.net/Teams/${code}.png` : null,
@@ -39,8 +49,9 @@ const HOME_TTL_MS = 60000;       // 1 min
 const LIVE_TTL_MS = 1800;        // 1.8s for fast live updates
 const SQUAD_TTL_MS = 600000;     // 10 mins
 const SQUAD_FAIL_TTL_MS = 30000; // 30s
+const FIXTURES_TTL_MS = 120000;  // 2 mins for upcoming / finished
 
-const teamCache = new Map();  // code -> { name, logo }
+const teamCache = new Map();  // code -> { name, shortName, logo }
 const keyMeta = new Map();    // code -> { series, desc, venue, battingTeam, slug, team1Code, team2Code }
 let lastHomeAt = 0;
 let homeInFlight = null;
@@ -53,6 +64,9 @@ const liveInflight = new Map();   // code -> Promise<state>
 
 const squadCache = new Map();     // code -> { at, data }
 const squadInflight = new Map();  // code -> Promise<data>
+
+let upcomingCache = { at: 0, data: [] };
+let finishedCache = { at: 0, data: [] };
 
 const ROLE_LABEL = { 0: 'WK', 1: 'Batter', 2: 'Bowler', 3: 'All-Rounder' };
 
@@ -462,7 +476,6 @@ async function fetchSquad(code) {
       team2: teamObj(t2key, t2, t2Jersey),
     },
     meta: {
-      updatedAt: new Date().toISOString(),
       isXIAnnounced: isXI,
     },
   };
@@ -490,7 +503,7 @@ export async function squadFor(code) {
   return p;
 }
 
-// --------------------------- PUBLIC EXPORTS ---------------------------
+// --------------------------- MATCH RETRIEVAL (LIVE, UPCOMING, FINISHED) ---------------------------
 
 export async function getLiveMatches() {
   await refreshNames(false);
@@ -526,17 +539,14 @@ export async function getLiveMatches() {
       scoreRaw: item.k || null,
     };
 
-    let status = 'live';
-    if (item.mStatus === 'UPCOMING' || item.st === 'UPCOMING') status = 'upcoming';
-    else if (item.mStatus === 'FINISHED' || item.st === 'FINISHED' || item.result) status = 'finished';
-
     list.push({
       id: code,
+      tab: 'live',
       series: km.series || item.sfullname || item.sname || null,
       matchDesc: km.desc || item.matchNo || null,
       venue: km.venue || item.vname || null,
       format: km.format || item.fo || null,
-      status,
+      status: 'live',
       statusText: item.result || item.tod || item.rem || 'Live',
       battingTeam: km.battingTeam || item.rate_team || null,
       slug: km.slug || null,
@@ -544,19 +554,186 @@ export async function getLiveMatches() {
         team1,
         team2,
       },
-      updatedAt: new Date().toISOString(),
     });
   }
 
   return list;
 }
 
+export async function getUpcomingMatches() {
+  if (Date.now() - upcomingCache.at < FIXTURES_TTL_MS && upcomingCache.data.length > 0) {
+    return upcomingCache.data;
+  }
+
+  await refreshNames(false);
+  const r = await getJson(UPCOMING_URL, {
+    method: 'POST',
+    headers: UPCOMING_HEADERS,
+    body: JSON.stringify({ type: 1 }),
+    timeout: 12000,
+  });
+
+  if (!r.ok || !Array.isArray(r.data)) return upcomingCache.data || [];
+
+  const rawMatches = [];
+  for (const day of r.data) {
+    for (const m of day.m || []) {
+      rawMatches.push(m);
+    }
+  }
+
+  // Resolve unknown team codes
+  const unknownTeams = [...new Set(rawMatches.flatMap((m) => [m.t1f, m.t2f]).filter((c) => c && !teamCache.has(c)))];
+  if (unknownTeams.length) {
+    const { teams } = await resolveNames([], unknownTeams);
+    for (const [fk, t] of Object.entries(teams)) {
+      teamCache.set(fk, { name: t.name, shortName: t.shortName, logo: ASSETS.TEAM_LOGO(fk) });
+    }
+  }
+
+  const list = rawMatches.map((m) => {
+    const code = m.nf || m.mf || String(m.id);
+    const t1Code = m.t1f;
+    const t2Code = m.t2f;
+    const t1Info = teamCache.get(t1Code) || {};
+    const t2Info = teamCache.get(t2Code) || {};
+
+    const startUtc = m.t ? new Date(m.t).toISOString() : null;
+
+    return {
+      id: code,
+      tab: 'upcoming',
+      series: m.sf || 'Upcoming Tournament',
+      matchDesc: m.mn ? `Match ${m.mn}` : null,
+      venue: m.vf || null,
+      format: m.ft ? (m.ft === 4 ? 'T20' : m.ft === 2 ? 'ODI' : 'Test') : null,
+      status: 'upcoming',
+      statusText: m.dt ? `Starts ${m.dt}` : 'Upcoming',
+      startTime: startUtc,
+      timestamp: m.t || null,
+      teams: {
+        team1: {
+          code: t1Code,
+          name: t1Info.name || t1Code,
+          shortName: t1Info.shortName || t1Code,
+          logo: ASSETS.TEAM_LOGO(t1Code),
+          jersey: ASSETS.JERSEY_LIMITED(t1Code),
+          score: null,
+          scoreRaw: null,
+        },
+        team2: {
+          code: t2Code,
+          name: t2Info.name || t2Code,
+          shortName: t2Info.shortName || t2Code,
+          logo: ASSETS.TEAM_LOGO(t2Code),
+          jersey: ASSETS.JERSEY_LIMITED(t2Code),
+          score: null,
+          scoreRaw: null,
+        },
+      },
+    };
+  });
+
+  upcomingCache = { at: Date.now(), data: list };
+  return list;
+}
+
+export async function getFinishedMatches() {
+  if (Date.now() - finishedCache.at < FIXTURES_TTL_MS && finishedCache.data.length > 0) {
+    return finishedCache.data;
+  }
+
+  await refreshNames(false);
+  const r = await getJson(UPCOMING_URL, {
+    method: 'POST',
+    headers: UPCOMING_HEADERS,
+    body: JSON.stringify({ type: 0 }),
+    timeout: 12000,
+  });
+
+  if (!r.ok || !Array.isArray(r.data)) return finishedCache.data || [];
+
+  const unknownTeams = [...new Set(r.data.flatMap((m) => [m.t1f, m.t2f]).filter((c) => c && !teamCache.has(c)))];
+  if (unknownTeams.length) {
+    const { teams } = await resolveNames([], unknownTeams);
+    for (const [fk, t] of Object.entries(teams)) {
+      teamCache.set(fk, { name: t.name, shortName: t.shortName, logo: ASSETS.TEAM_LOGO(fk) });
+    }
+  }
+
+  const list = r.data.map((m) => {
+    const code = m.mfkey;
+    const t1Code = m.t1f;
+    const t2Code = m.t2f;
+    const t1Info = teamCache.get(t1Code) || {};
+    const t2Info = teamCache.get(t2Code) || {};
+
+    const team1Score = m.score1 ? `${m.score1}${m.overs1 ? ` (${m.overs1})` : ''}` : null;
+    const team2Score = m.score2 ? `${m.score2}${m.overs2 ? ` (${m.overs2})` : ''}` : null;
+
+    return {
+      id: code,
+      tab: 'finished',
+      series: m.sfkey || 'Cricket Series',
+      matchDesc: m.match_number ? `Match ${m.match_number}` : null,
+      venue: m.vf || null,
+      format: m.match_type ? (m.match_type === 5 ? 'T20' : 'ODI') : null,
+      status: 'finished',
+      statusText: m.result || 'Finished',
+      winner: m.winner || null,
+      date: m.date || null,
+      teams: {
+        team1: {
+          code: t1Code,
+          name: t1Info.name || t1Code,
+          shortName: t1Info.shortName || t1Code,
+          logo: ASSETS.TEAM_LOGO(t1Code),
+          jersey: ASSETS.JERSEY_LIMITED(t1Code),
+          score: m.score1 ? parseScore(m.score1) : null,
+          scoreRaw: team1Score,
+        },
+        team2: {
+          code: t2Code,
+          name: t2Info.name || t2Code,
+          shortName: t2Info.shortName || t2Code,
+          logo: ASSETS.TEAM_LOGO(t2Code),
+          jersey: ASSETS.JERSEY_LIMITED(t2Code),
+          score: m.score2 ? parseScore(m.score2) : null,
+          scoreRaw: team2Score,
+        },
+      },
+    };
+  });
+
+  finishedCache = { at: Date.now(), data: list };
+  return list;
+}
+
+export async function getAllMatches() {
+  const [live, upcoming, finished] = await Promise.all([
+    getLiveMatches().catch(() => []),
+    getUpcomingMatches().catch(() => []),
+    getFinishedMatches().catch(() => []),
+  ]);
+  return [...live, ...upcoming, ...finished];
+}
+
 export async function getMatchDetail(code) {
   const state = await getPageState(code);
   if (!state) {
-    // Fallback: check if we have it in live list
+    // Check in live matches first
     const live = await getLiveMatches();
-    return live.find((m) => m.id === code) || null;
+    const foundLive = live.find((m) => m.id === code);
+    if (foundLive) return foundLive;
+
+    // Check in finished matches
+    const finished = await getFinishedMatches();
+    const foundFinished = finished.find((m) => m.id === code);
+    if (foundFinished) return foundFinished;
+
+    // Check in upcoming matches
+    const upcoming = await getUpcomingMatches();
+    return upcoming.find((m) => m.id === code) || null;
   }
 
   const sv = state['https://api.goscorer.com/api/v3/getSV3'] || {};
@@ -598,6 +775,5 @@ export async function getMatchDetail(code) {
     statusText: sv.result || rich.equation || 'Live',
     teams: { team1, team2 },
     rich,
-    updatedAt: new Date().toISOString(),
   };
 }

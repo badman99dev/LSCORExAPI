@@ -154,6 +154,51 @@ function findBallFeed(state) {
   return [];
 }
 
+/**
+ * Returns the first meaningful result string. CREX's getSV3 `B` field holds a
+ * short state code ("1", "o", ...) during live play and only becomes a proper
+ * result sentence ("IND won by 8 wickets") once the match is finished, so short
+ * tokens are ignored.
+ */
+function firstResultString(...vals) {
+  for (const v of vals) {
+    if (typeof v !== 'string') continue;
+    const s = v.trim();
+    if (!s) continue;
+    if (/(won|drawn|tied|abandoned|no result|match drawn)/i.test(s)) return s;
+    if (s.length >= 8 && /[a-z]/i.test(s)) return s;
+  }
+  return null;
+}
+
+/**
+ * Human-readable dismissal label. CREX's numeric `dismissal` code is the
+ * wicket-type (1=bowled, 2=caught, 3=lbw, 4=run out, 5=stumped,
+ * 6=hit wicket, 7=retired, ...); we also sniff the description text as a
+ * fallback so "caught & bowled" and "run out" are labelled correctly.
+ */
+function dismissalLabel(w) {
+  const desc = String(w.wicketDesc || '').toLowerCase();
+  if (/&\s*b|caught.*bowled|c ?& ?b/.test(desc)) return 'Caught & Bowled';
+  if (desc.includes('run out') || desc.includes('runout')) return 'Run Out';
+  if (desc.includes('stumped') || desc.includes('st.') || desc.includes('st ')) return 'Stumped';
+  if (desc.includes('lbw')) return 'LBW';
+  if (desc.includes('hit wicket')) return 'Hit Wicket';
+  if (desc.includes('retired')) return 'Retired';
+  if (desc.includes('obstruct')) return 'Obstructing the field';
+  if (desc.includes('timed out')) return 'Timed Out';
+  switch (Number(w.dismissal)) {
+    case 1: return 'Bowled';
+    case 2: return 'Caught';
+    case 3: return 'LBW';
+    case 4: return 'Run Out';
+    case 5: return 'Stumped';
+    case 6: return 'Hit Wicket';
+    case 7: return 'Retired';
+    default: return desc.includes('b ') ? 'Bowled' : 'Out';
+  }
+}
+
 function buildRich(state, code) {
   const sv = state['https://api.goscorer.com/api/v3/getSV3'] || {};
   const meta = (state['https://stats.crickapi.com/live/getMatchMetaData'] || [])[0] || {};
@@ -281,15 +326,19 @@ function buildRich(state, code) {
     }));
   }
 
-  const rb = feed.filter((b) => b.type === 'b' && b.c1);
+  const rb = feed.filter((b) => b.type === 'b' && (b.c1 || b.b));
   if (rb.length) {
-    rich.recentBalls = rb.slice(0, 18).map((b) => ({
+    rich.recentBalls = rb.slice(0, 24).map((b) => ({
       over: b.o,
-      text: b.c1,
+      ball: b.b != null ? String(b.b) : null,
+      text: b.c1 || null,
       score: b.s,
       shot: b.shot_type && b.shot_type !== 'NA' ? b.shot_type : null,
       wagon: b.wagon_w && b.wagon_w !== 'NA' ? b.wagon_w : null,
       commentary: b.c2 ? stripHtml(b.c2) : null,
+      isBoundary: String(b.b) === '4' || String(b.b) === '6',
+      isWicket: String(b.b).toLowerCase() === 'w',
+      isExtra: /wd|nb|wide|no.?ball/i.test(String(b.b)),
     }));
   }
 
@@ -299,10 +348,15 @@ function buildRich(state, code) {
     rich.wickets = wkts.slice(0, 10).map((w) => ({
       over: w.o || null,
       player: w.player_fullname || w.n || null,
-      dismissal: w.wicketDesc || w.dismissal || null,
+      shortName: w.player_s_name || w.player || null,
+      dismissal: w.wicketDesc || (typeof w.dismissal === 'string' ? w.dismissal : null),
+      dismissalType: dismissalLabel(w),
       runs: nnum(w.r),
+      balls: nnum(w.s),
       strikeRate: nnum(w.sr),
       score: w.tsl || null,
+      fkey: w.player_fkey || null,
+      head: w.urlSVG || ASSETS.PLAYER_HEAD(w.player_fkey),
     }));
   }
 
@@ -1075,9 +1129,19 @@ export async function getMatchDetail(code) {
   const startDate = startMs ? new Date(startMs) : null;
   const dateStr = startDate && !isNaN(startDate) ? `${startDate.getUTCFullYear()}/${startDate.getUTCMonth() + 1}/${startDate.getUTCDate()}` : null;
 
-  const resultText = sv.B || sv.result || rich.equation ||
-    (status === 'upcoming' ? (dateStr ? `Starts ${dateStr}` : 'Upcoming')
-      : status === 'finished' ? 'Finished' : (sv.e === 1 ? 'Live' : 'Match in Progress'));
+  // Compute the live equation (needs/trail/lead) from innings scores.
+  const liveEquation = computeLiveEquation(
+    { d: sv.d || rich.day, fo: sv.fo || km.format, j: sv.j, k: sv.k, l: sv.l, m: sv.m },
+    team1.shortName,
+    team2.shortName
+  );
+
+  const resultStr = firstResultString(sv.B, sv.result, sv.res, rich.equation);
+  const resultText = status === 'finished'
+      ? (resultStr || 'Finished')
+      : status === 'upcoming'
+        ? (dateStr ? `Starts ${dateStr}` : 'Upcoming')
+        : (liveEquation || 'Live');
 
   return {
     id: code,
@@ -1089,7 +1153,7 @@ export async function getMatchDetail(code) {
     statusText: resultText,
     startTime,
     timestamp: startMs,
-    result: sv.B || null,
+    result: status === 'finished' ? resultStr : null,
     manOfMatch: sv.mm || null,
     teams: { team1, team2 },
     rich,

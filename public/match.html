@@ -306,6 +306,212 @@
       font-family: var(--mono);
     }
 
+    /* ===== CREX-style live scoreboard ===== */
+    .crex-board {
+      background: linear-gradient(180deg, #0b1220 0%, #0f172a 100%);
+      border: 1px solid #1e293b;
+      border-radius: 16px;
+      padding: 18px 20px;
+      display: flex;
+      flex-direction: column;
+      gap: 14px;
+    }
+    .crex-board-top {
+      display: flex;
+      align-items: flex-start;
+      justify-content: space-between;
+      gap: 16px;
+    }
+    .crex-teams {
+      display: flex;
+      flex-direction: column;
+      gap: 10px;
+      flex: 1;
+      min-width: 0;
+    }
+    .crex-team-row {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+    }
+    .crex-team-logo {
+      width: 42px;
+      height: 42px;
+      border-radius: 10px;
+      background: #1e293b;
+      padding: 4px;
+      object-fit: contain;
+      border: 1px solid #334155;
+      flex: 0 0 auto;
+    }
+    .crex-team-body { display: flex; flex-direction: column; min-width: 0; }
+    .crex-team-code {
+      font-weight: 800;
+      font-size: 1.05rem;
+      color: #f8fafc;
+      display: flex;
+      align-items: center;
+      gap: 6px;
+    }
+    .crex-team-score {
+      font-family: var(--mono);
+      font-size: 1.35rem;
+      font-weight: 800;
+      color: #fbbf24;
+      line-height: 1.15;
+    }
+    .crex-team-score .ov {
+      font-size: 0.8rem;
+      color: #94a3b8;
+      font-weight: 600;
+      margin-left: 6px;
+    }
+    .crex-team-row.batting .crex-team-code::before {
+      content: "";
+      width: 7px; height: 7px;
+      border-radius: 50%;
+      background: #ef4444;
+      box-shadow: 0 0 8px #ef4444;
+    }
+    .crex-badge-red {
+      background: #dc2626;
+      color: #fff;
+      font-size: 0.6rem;
+      font-weight: 800;
+      padding: 1px 5px;
+      border-radius: 3px;
+      letter-spacing: 0.5px;
+    }
+    .crex-status-side {
+      text-align: right;
+      flex: 0 0 auto;
+      max-width: 45%;
+    }
+    .crex-status-main {
+      font-size: 1.15rem;
+      font-weight: 800;
+      color: #f8fafc;
+      line-height: 1.25;
+    }
+    .crex-status-main.win { color: #fbbf24; }
+    .crex-status-sub {
+      font-size: 0.82rem;
+      color: #94a3b8;
+      margin-top: 4px;
+    }
+    .crex-batters {
+      display: flex;
+      gap: 20px;
+      flex-wrap: wrap;
+      border-top: 1px solid #1e293b;
+      padding-top: 12px;
+    }
+    .crex-batter {
+      display: flex;
+      flex-direction: column;
+      gap: 2px;
+    }
+    .crex-batter .bn {
+      font-size: 0.82rem;
+      color: #cbd5e1;
+      display: flex;
+      align-items: center;
+      gap: 5px;
+    }
+    .crex-batter .bn .str { color: #ef4444; }
+    .crex-batter .bs {
+      font-family: var(--mono);
+      font-size: 0.9rem;
+      color: #f1f5f9;
+    }
+    .crex-crr {
+      margin-left: auto;
+      font-size: 0.85rem;
+      color: #94a3b8;
+      align-self: center;
+    }
+
+    /* Over-by-over strip */
+    .ov-strip {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 16px;
+    }
+    .ov-block {
+      background: #0f172a;
+      border: 1px solid #1e293b;
+      border-radius: 10px;
+      padding: 10px 12px;
+      min-width: 200px;
+      flex: 1;
+    }
+    .ov-block-head {
+      display: flex;
+      justify-content: space-between;
+      font-size: 0.78rem;
+      color: #94a3b8;
+      margin-bottom: 8px;
+      font-weight: 700;
+    }
+    .ov-block-head .tot { color: #38bdf8; font-family: var(--mono); }
+    .ov-balls { display: flex; gap: 6px; flex-wrap: wrap; }
+    .ov-ball {
+      width: 28px; height: 28px;
+      border-radius: 50%;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 0.78rem;
+      font-weight: 800;
+      font-family: var(--mono);
+      background: #1e293b;
+      color: #e2e8f0;
+      border: 1px solid #334155;
+    }
+    .ov-ball.b4 { background: #0e7490; color: #fff; border-color: #0891b2; }
+    .ov-ball.b6 { background: #7c3aed; color: #fff; border-color: #8b5cf6; }
+    .ov-ball.bw { background: #dc2626; color: #fff; border-color: #ef4444; }
+    .ov-ball.bx { background: #475569; color: #fff; font-size: 0.68rem; }
+
+    /* Commentary feed */
+    .comm-item {
+      display: flex;
+      gap: 12px;
+      padding: 12px 0;
+      border-bottom: 1px solid #1e293b;
+    }
+    .comm-ov {
+      font-family: var(--mono);
+      font-size: 0.82rem;
+      color: #38bdf8;
+      font-weight: 700;
+      flex: 0 0 44px;
+    }
+    .comm-pill {
+      width: 30px; height: 30px;
+      border-radius: 50%;
+      display: flex; align-items: center; justify-content: center;
+      font-weight: 800; font-size: 0.8rem;
+      background: #1e293b; color: #e2e8f0; border: 1px solid #334155;
+      flex: 0 0 auto; font-family: var(--mono);
+    }
+    .comm-pill.b4 { background: #0e7490; color: #fff; border-color: #0891b2; }
+    .comm-pill.b6 { background: #7c3aed; color: #fff; border-color: #8b5cf6; }
+    .comm-pill.bw { background: #dc2626; color: #fff; border-color: #ef4444; }
+    .comm-pill.bx { background: #475569; color: #fff; font-size: 0.7rem; }
+    .comm-body { flex: 1; min-width: 0; }
+    .comm-text { font-size: 0.88rem; color: #cbd5e1; }
+    .comm-score { font-family: var(--mono); font-size: 0.75rem; color: #fbbf24; margin-top: 3px; }
+    .comm-wkt {
+      background: #7f1d1d22;
+      border-left: 3px solid #dc2626;
+      padding: 10px 12px;
+      border-radius: 8px;
+      margin: 8px 0;
+    }
+    .comm-wkt .wt-name { font-weight: 800; color: #fca5a5; }
+    .comm-wkt .wt-desc { font-size: 0.82rem; color: #cbd5e1; margin-top: 2px; }
+
     /* Tabs Navigation */
     .detail-tabs {
       display: flex;
@@ -585,10 +791,10 @@
         </div>
       </div>
 
-      <!-- Recent Deliveries (Ball by Ball) -->
+      <!-- Last overs (over-by-over) -->
       <div class="card">
         <div class="card-title">
-          <span>⚾ Recent Deliveries (Ball-by-Ball Timeline)</span>
+          <span>📊 Last Overs (Over-by-Over)</span>
         </div>
         <div id="deliveriesContent">
           <div style="color:var(--text-muted); font-size:0.88rem;">Waiting for ball feeds...</div>
@@ -704,6 +910,29 @@ es.addEventListener("update", e => console.log("Live update diff:", JSON.parse(e
       }
     }
 
+    function parseScoreParts(raw) {
+      if (raw == null) return { main: null, overs: null };
+      const s = String(raw);
+      const mm = s.match(/^(\d+(?:\s*[/-]\s*\d+)?)\s*(?:\(([\d.]+))?/);
+      if (!mm) return { main: s, overs: null };
+      return { main: mm[1].replace(/\s+/g, ""), overs: mm[2] || null };
+    }
+    function parseScoreParts2(raw) {
+      if (raw == null) return { main: null, overs: null };
+      const s = String(raw);
+      const andIdx = s.indexOf(" & ");
+      if (andIdx === -1) return parseScoreParts(raw);
+      const first = parseScoreParts(s.slice(0, andIdx));
+      const second = parseScoreParts(s.slice(andIdx + 3));
+      return { main: `${first.main} & ${second.main}`, overs: second.overs || first.overs };
+    }
+
+    function teamScoreHTML(t) {
+      const { main, overs } = parseScoreParts2(t.scoreRaw);
+      if (!main) return `<span style="color:#64748b;">—</span>`;
+      return `${main}${overs ? `<span class="ov">(${overs} ov)</span>` : ""}`;
+    }
+
     function renderHero(m) {
       const box = document.getElementById("matchHeroBox");
       const t1 = m.teams?.team1 || {};
@@ -711,75 +940,59 @@ es.addEventListener("update", e => console.log("Live update diff:", JSON.parse(e
       const r = m.rich || {};
 
       let statusBadge = `<span class="status-badge status-live"><span class="live-pulse"></span> LIVE</span>`;
-      if (m.status === "finished") {
-        statusBadge = `<span class="status-badge status-finished">🏁 FINISHED</span>`;
-      } else if (m.status === "upcoming") {
-        statusBadge = `<span class="status-badge status-upcoming">⏳ UPCOMING</span>`;
-      }
+      if (m.status === "finished") statusBadge = `<span class="status-badge status-finished">🏁 FINISHED</span>`;
+      else if (m.status === "upcoming") statusBadge = `<span class="status-badge status-upcoming">⏳ UPCOMING</span>`;
 
-      const isWon = m.result || (m.statusText && m.statusText.toLowerCase().includes("won"));
+      const isWon = Boolean(m.result) || (m.statusText || "").toLowerCase().includes("won");
+      const isBatting1 = t1.isBatting || r.battingTeamCode === t1.code;
+      const isBatting2 = t2.isBatting || r.battingTeamCode === t2.code;
+
+      // Right-hand status: for live show equation/ball, else result text
+      const statusMain = (m.status === "live")
+        ? (r.equation || m.statusText || "Live")
+        : (m.result || m.statusText || (m.status === "upcoming" ? "Upcoming" : "Finished"));
+
+      const batterRow = (p, isStrike) => p ? `
+        <div class="crex-batter">
+          <span class="bn">${p.shortName || p.name || "Batter"}${isStrike ? ' <span class="str">*</span>' : ''}</span>
+          <span class="bs">${p.runs ?? 0} (${p.balls ?? 0})</span>
+        </div>` : "";
 
       box.innerHTML = `
-        <div class="match-hero">
-          <div class="match-meta-top">
-            <div class="match-title-group">
-              <h1>${m.series || "Cricket Match"}</h1>
-              <div class="match-subtitle">
-                <span>🏏 ${m.matchDesc || "Match"}</span>
-                <span>•</span>
-                <span>🏟️ ${m.venue || "Stadium"}</span>
-                <span>•</span>
-                <span>Format: ${m.format || "T20"}</span>
-              </div>
-            </div>
-            <div>${statusBadge}</div>
-          </div>
-
-          <div class="scoreboard-grid">
-            <!-- Team 1 -->
-            <div class="team-box team1-box">
-              <img src="${t1.logo || ""}" class="team-crest" onerror="this.src='https://cricketvectors.akamaized.net/Teams/${t1.code}.png'; this.onerror=null;">
-              <div class="team-meta-info">
-                <div class="team-name">
-                  ${t1.jersey ? `<img src="${t1.jersey}" class="jersey-icon" onerror="this.style.display='none'">` : ""}
-                  <span>${t1.name || t1.shortName || t1.code || "Team 1"}</span>
+        <div class="crex-board">
+          <div class="crex-board-top">
+            <div class="crex-teams">
+              <div class="crex-team-row ${isBatting1 ? "batting" : ""}">
+                <img class="crex-team-logo" src="${t1.logo || ""}" onerror="this.style.visibility='hidden'">
+                <div class="crex-team-body">
+                  <span class="crex-team-code">${t1.shortName || t1.code || "Team 1"}</span>
+                  <span class="crex-team-score">${teamScoreHTML(t1)}</span>
                 </div>
-                <div class="team-score-big">${t1.scoreRaw || "--"}</div>
-                ${t1.subScore ? `<div class="sub-score">2nd Inn: ${t1.subScore}</div>` : ""}
               </div>
-            </div>
-
-            <!-- VS Divider -->
-            <div class="vs-divider">VS</div>
-
-            <!-- Team 2 -->
-            <div class="team-box team2-box">
-              <img src="${t2.logo || ""}" class="team-crest" onerror="this.src='https://cricketvectors.akamaized.net/Teams/${t2.code}.png'; this.onerror=null;">
-              <div class="team-meta-info">
-                <div class="team-name">
-                  <span>${t2.name || t2.shortName || t2.code || "Team 2"}</span>
-                  ${t2.jersey ? `<img src="${t2.jersey}" class="jersey-icon" onerror="this.style.display='none'">` : ""}
+              <div class="crex-team-row ${isBatting2 ? "batting" : ""}">
+                <img class="crex-team-logo" src="${t2.logo || ""}" onerror="this.style.visibility='hidden'">
+                <div class="crex-team-body">
+                  <span class="crex-team-code">${t2.shortName || t2.code || "Team 2"}</span>
+                  <span class="crex-team-score">${teamScoreHTML(t2)}</span>
                 </div>
-                <div class="team-score-big">${t2.scoreRaw || "--"}</div>
-                ${t2.subScore ? `<div class="sub-score">2nd Inn: ${t2.subScore}</div>` : ""}
               </div>
+            </div>
+            <div class="crex-status-side">
+              <div>${statusBadge}</div>
+              <div class="crex-status-main ${isWon ? "win" : ""}" style="margin-top:8px;">${statusMain}</div>
+              ${m.status === "live" && r.rrr ? `<div class="crex-status-sub">RRR: ${r.rrr}</div>` : ""}
+              ${m.status === "upcoming" && m.startTime ? `<div class="crex-status-sub">${new Date(m.startTime).toLocaleString()}</div>` : ""}
             </div>
           </div>
 
-          <!-- Result / Equation Ribbon -->
-          <div class="result-banner ${isWon ? "won" : ""}">
-            <div>📢 <strong>Status:</strong> ${m.result || m.statusText || "Match in Progress"}</div>
-            ${m.manOfMatch ? `<div style="color:#fbbf24; font-size:0.86rem;">🏆 POTM: ${m.manOfMatch}</div>` : ""}
-          </div>
+          ${(r.striker || r.nonStriker) && m.status === "live" ? `
+          <div class="crex-batters">
+            ${batterRow(r.striker, true)}
+            ${batterRow(r.nonStriker, false)}
+            ${r.crr ? `<div class="crex-crr">CRR: <strong style="color:#f1f5f9; font-family:var(--mono);">${r.crr}</strong></div>` : ""}
+          </div>` : ""}
 
-          <!-- Match Rate Indicators -->
-          <div class="stats-ribbon">
-            ${r.crr ? `<div class="stat-pill">CRR: <strong>${r.crr}</strong></div>` : ""}
-            ${r.rrr ? `<div class="stat-pill">RRR: <strong>${r.rrr}</strong></div>` : ""}
-            ${r.target ? `<div class="stat-pill">Target: <strong>${r.target}</strong></div>` : ""}
-            ${r.partnership ? `<div class="stat-pill">Partnership: <strong>${r.partnership.runs} (${r.partnership.balls}b)</strong></div>` : ""}
-            ${r.day ? `<div class="stat-pill">Day: <strong>${r.day} / ${r.totalDays || "5"}</strong></div>` : ""}
-          </div>
+          ${m.manOfMatch ? `<div style="font-size:0.85rem; color:#fbbf24;">🏆 Player of the Match: ${m.manOfMatch}</div>` : ""}
         </div>
       `;
     }
@@ -854,29 +1067,35 @@ es.addEventListener("update", e => console.log("Live update diff:", JSON.parse(e
         bowlerBox.innerHTML = `<div style="color:var(--text-muted); padding:10px;">No bowler details available.</div>`;
       }
 
-      // Deliveries
+      // Last N overs, over-by-over (like CREX "Overs" view)
       const delBox = document.getElementById("deliveriesContent");
-      if (r.recentBalls && r.recentBalls.length) {
+      const overs = (r.lastOvers || []).slice(-4);
+      if (overs.length) {
         delBox.innerHTML = `
-          <div class="deliveries-wrap">
-            ${r.recentBalls.slice(0, 24).map(b => {
-              let cls = "";
-              const txt = String(b.text || "").toLowerCase();
-              if (txt === "4" || txt === "6") cls = "boundary";
-              else if (txt === "w" || txt.includes("w")) cls = "wicket";
-              else if (txt.includes("wd") || txt.includes("nb")) cls = "extra";
-              return `
-                <div class="ball-pill ${cls}" title="${b.commentary || ""}">
-                  <span style="font-size:0.7rem; color:#94a3b8;">${b.over}</span>
-                  <span>${b.text}</span>
-                  ${b.score ? `<span style="font-size:0.7rem; opacity:0.8;">(${b.score})</span>` : ""}
+          <div class="ov-strip">
+            ${overs.map(o => `
+              <div class="ov-block">
+                <div class="ov-block-head">
+                  <span>${o.over || "Over"}</span>
+                  <span class="tot">= ${o.total ?? 0}</span>
                 </div>
-              `;
-            }).join("")}
+                <div class="ov-balls">
+                  ${(o.balls || []).map(b => {
+                    const t = String(b).toLowerCase();
+                    let cls = "ov-ball";
+                    if (t === "4") cls += " b4";
+                    else if (t === "6") cls += " b6";
+                    else if (t === "w") cls += " bw";
+                    else if (t.includes("wd") || t.includes("nb") || t.includes("lb") || t.includes("b")) cls += " bx";
+                    return `<span class="${cls}">${b}</span>`;
+                  }).join("")}
+                </div>
+              </div>
+            `).join("")}
           </div>
         `;
       } else {
-        delBox.innerHTML = `<div style="color:var(--text-muted); padding:10px;">Recent balls timeline will appear here once live overs begin.</div>`;
+        delBox.innerHTML = `<div style="color:var(--text-muted); padding:10px;">Over-by-over breakdown will appear here once live overs begin.</div>`;
       }
 
       // Fall of Wickets
@@ -897,10 +1116,10 @@ es.addEventListener("update", e => console.log("Live update diff:", JSON.parse(e
               ${r.wickets.map(w => `
                 <tr>
                   <td style="font-family:var(--mono); color:#38bdf8;">${w.over || "--"}</td>
-                  <td style="font-weight:700;">${w.player || "Batter"}</td>
+                  <td style="font-weight:700;">${w.player || "Batter"}${w.dismissalType ? ` <span style="font-size:0.7rem; color:#fca5a5;">${w.dismissalType}</span>` : ""}</td>
                   <td style="font-family:var(--mono); color:#fbbf24;">${w.score || "--"}</td>
-                  <td>${w.runs ?? 0} (${w.strikeRate ? "SR: " + w.strikeRate : ""})</td>
-                  <td style="color:#9ca3af;">${w.dismissal || "Out"}</td>
+                  <td>${w.runs ?? 0}${w.balls != null ? ` (${w.balls}b)` : ""}${w.strikeRate ? ` <span style="color:#64748b;">SR ${w.strikeRate}</span>` : ""}</td>
+                  <td style="color:#9ca3af;">${w.dismissal || w.dismissalType || "Out"}</td>
                 </tr>
               `).join("")}
             </tbody>
@@ -910,17 +1129,39 @@ es.addEventListener("update", e => console.log("Live update diff:", JSON.parse(e
         fowBox.innerHTML = `<div style="color:var(--text-muted); padding:10px;">No wickets fallen yet in this innings.</div>`;
       }
 
-      // Commentary / Timeline
+      // Commentary — ball-by-ball with W / wd / 4 / 6 outcome pills
       const commBox = document.getElementById("commentaryContent");
-      if (r.timeline && r.timeline.length) {
+      if (r.recentBalls && r.recentBalls.length) {
+        const wkts = r.wickets || [];
+        commBox.innerHTML = r.recentBalls.map(b => {
+          const t = String(b.ball ?? b.text ?? "").toLowerCase();
+          let cls = "comm-pill";
+          let label = b.ball ?? "";
+          if (t === "4") cls += " b4";
+          else if (t === "6") cls += " b6";
+          else if (t === "w") cls += " bw";
+          else if (t.includes("wd") || t.includes("nb") || t.includes("lb")) { cls += " bx"; label = label.toUpperCase(); }
+
+          const wk = (t === "w") ? wkts.find(w => w.over === b.over) : null;
+          const line = b.text || b.commentary || "";
+          return `
+            <div class="comm-item">
+              <span class="comm-ov">${b.over || ""}</span>
+              <span class="${cls}">${label || "•"}</span>
+              <div class="comm-body">
+                <div class="comm-text">${line || "Ball played"}</div>
+                ${wk ? `<div class="comm-wkt"><div class="wt-name">OUT — ${wk.player || "Batter"} ${wk.runs ?? 0}(${wk.balls ?? 0})</div><div class="wt-desc">${wk.dismissal || wk.dismissalType || ""}</div></div>` : ""}
+                ${b.score ? `<div class="comm-score">${b.score}</div>` : ""}
+              </div>
+            </div>
+          `;
+        }).join("");
+      } else if (r.timeline && r.timeline.length) {
         commBox.innerHTML = r.timeline.map(t => `
-          <div style="background:#182234; padding:12px; border-radius:8px; margin-bottom:8px; border-left:3px solid #10b981;">
-            <div style="font-size:0.9rem;">${t.text}</div>
-            ${t.score ? `<div style="font-family:var(--mono); font-size:0.75rem; color:#fbbf24; margin-top:4px;">Score: ${t.score}</div>` : ""}
-          </div>
+          <div class="comm-item"><div class="comm-body"><div class="comm-text">${t.text}</div>${t.score ? `<div class="comm-score">${t.score}</div>` : ""}</div></div>
         `).join("");
       } else {
-        commBox.innerHTML = `<div style="color:var(--text-muted); padding:10px;">Ball-by-ball commentary timeline will stream here.</div>`;
+        commBox.innerHTML = `<div style="color:var(--text-muted); padding:10px;">Ball-by-ball commentary will stream here.</div>`;
       }
     }
 

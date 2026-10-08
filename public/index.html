@@ -300,6 +300,83 @@
       margin-top: 20px;
     }
 
+    /* ===== CREX-style live board ===== */
+    .crex-board {
+      background: linear-gradient(180deg, #0b1220 0%, #0f172a 100%);
+      border: 1px solid #1e293b;
+      border-radius: 16px;
+      padding: 18px 20px;
+      display: flex;
+      flex-direction: column;
+      gap: 14px;
+    }
+    .crex-board-top {
+      display: flex;
+      align-items: flex-start;
+      justify-content: space-between;
+      gap: 16px;
+    }
+    .crex-teams { display: flex; flex-direction: column; gap: 10px; flex: 1; min-width: 0; }
+    .crex-team-row { display: flex; align-items: center; gap: 12px; }
+    .crex-team-logo {
+      width: 42px; height: 42px; border-radius: 10px;
+      background: #1e293b; padding: 4px; object-fit: contain;
+      border: 1px solid #334155; flex: 0 0 auto;
+    }
+    .crex-team-body { display: flex; flex-direction: column; min-width: 0; }
+    .crex-team-code { font-weight: 800; font-size: 1.05rem; color: #f8fafc; display: flex; align-items: center; gap: 6px; }
+    .crex-team-score { font-family: var(--mono); font-size: 1.35rem; font-weight: 800; color: #fbbf24; line-height: 1.15; }
+    .crex-team-score .ov { font-size: 0.8rem; color: #94a3b8; font-weight: 600; margin-left: 6px; }
+    .crex-team-row.batting .crex-team-code::before {
+      content: ""; width: 7px; height: 7px; border-radius: 50%;
+      background: #ef4444; box-shadow: 0 0 8px #ef4444;
+    }
+    .crex-status-side { text-align: right; flex: 0 0 auto; max-width: 46%; }
+    .crex-status-main { font-size: 1.15rem; font-weight: 800; color: #f8fafc; line-height: 1.25; margin-top: 8px; }
+    .crex-status-main.win { color: #fbbf24; }
+    .crex-status-sub { font-size: 0.82rem; color: #94a3b8; margin-top: 4px; }
+    .crex-batters {
+      display: flex; gap: 20px; flex-wrap: wrap;
+      border-top: 1px solid #1e293b; padding-top: 12px;
+    }
+    .crex-batter { display: flex; flex-direction: column; gap: 2px; }
+    .crex-batter .bn { font-size: 0.82rem; color: #cbd5e1; }
+    .crex-batter .bn .str { color: #ef4444; }
+    .crex-batter .bs { font-family: var(--mono); font-size: 0.9rem; color: #f1f5f9; }
+    .crex-crr { margin-left: auto; font-size: 0.85rem; color: #94a3b8; align-self: center; }
+
+    /* Over-by-over strip */
+    .ov-strip { display: flex; flex-wrap: wrap; gap: 16px; }
+    .ov-block {
+      background: #0f172a; border: 1px solid #1e293b; border-radius: 10px;
+      padding: 10px 12px; min-width: 200px; flex: 1;
+    }
+    .ov-block-head { display: flex; justify-content: space-between; font-size: 0.78rem; color: #94a3b8; margin-bottom: 8px; font-weight: 700; }
+    .ov-block-head .tot { color: #38bdf8; font-family: var(--mono); }
+    .ov-balls { display: flex; gap: 6px; flex-wrap: wrap; }
+    .ov-ball {
+      width: 28px; height: 28px; border-radius: 50%;
+      display: flex; align-items: center; justify-content: center;
+      font-size: 0.78rem; font-weight: 800; font-family: var(--mono);
+      background: #1e293b; color: #e2e8f0; border: 1px solid #334155;
+    }
+    .ov-ball.b4 { background: #0e7490; color: #fff; border-color: #0891b2; }
+    .ov-ball.b6 { background: #7c3aed; color: #fff; border-color: #8b5cf6; }
+    .ov-ball.bw { background: #dc2626; color: #fff; border-color: #ef4444; }
+    .ov-ball.bx { background: #475569; color: #fff; font-size: 0.68rem; }
+
+    /* Fall of wickets cards */
+    .fow-grid { display: flex; flex-direction: column; gap: 8px; }
+    .fow-item {
+      display: flex; align-items: center; gap: 12px;
+      background: #0f172a; border: 1px solid #1e293b; border-left: 3px solid #dc2626;
+      border-radius: 8px; padding: 10px 12px;
+    }
+    .fow-item .fo { font-family: var(--mono); color: #38bdf8; font-size: 0.82rem; font-weight: 700; flex: 0 0 46px; }
+    .fow-item .fp { font-weight: 800; color: #fca5a5; }
+    .fow-item .fd { font-size: 0.8rem; color: #94a3b8; }
+    .fow-item .fs { margin-left: auto; font-family: var(--mono); color: #fbbf24; font-size: 0.85rem; }
+
     /* SSE Stream Banner */
     .sse-control-bar {
       background: #111827;
@@ -660,6 +737,12 @@
         <div id="recentBallsBox" style="display:flex; gap:8px; flex-wrap:wrap;"></div>
       </div>
 
+      <!-- Fall of Wickets -->
+      <div id="fowCard" class="card" style="margin-bottom:24px; display:none;">
+        <div class="card-title">🔴 Fall of Wickets</div>
+        <div id="fowBoxInner"></div>
+      </div>
+
       <!-- Playing XI & Squad Section -->
       <div class="card">
         <div class="card-title">
@@ -792,36 +875,92 @@
       } catch (_) {}
     }
 
+    function scoreParts(raw) {
+      if (raw == null) return { main: null, overs: null };
+      const s = String(raw);
+      const mm = s.match(/^(\d+(?:\s*[/-]\s*\d+)?)\s*(?:\(([\d.]+))?/);
+      if (!mm) return { main: s, overs: null };
+      return { main: mm[1].replace(/\s+/g, ""), overs: mm[2] || null };
+    }
+    // Multi-innings (Test/First-Class) scores look like "223/10(63.0 & 190/10(54.2"
+    function scoreParts2(raw) {
+      if (raw == null) return { main: null, overs: null };
+      const s = String(raw);
+      const andIdx = s.indexOf(" & ");
+      if (andIdx === -1) return scoreParts(raw);
+      const first = scoreParts(s.slice(0, andIdx));
+      const second = scoreParts(s.slice(andIdx + 3));
+      return { main: `${first.main} & ${second.main}`, overs: second.overs || first.overs };
+    }
+    function teamScoreHTML(t) {
+      const { main, overs } = scoreParts2(t.scoreRaw);
+      if (!main) return `<span style="color:#64748b;">—</span>`;
+      return `${main}${overs ? `<span class="ov">(${overs} ov)</span>` : ""}`;
+    }
+
     function renderMatchScore(match) {
       const hero = document.getElementById("matchHeroCard");
       const t1 = match.teams?.team1 || {};
       const t2 = match.teams?.team2 || {};
       const r = match.rich || {};
 
+      const isWon = Boolean(match.result) || (match.statusText || "").toLowerCase().includes("won");
+      const isBatting1 = t1.isBatting || r.battingTeamCode === t1.code;
+      const isBatting2 = t2.isBatting || r.battingTeamCode === t2.code;
+
+      let statusBadge = `<span class="status-badge status-live"><span class="live-pulse"></span> LIVE</span>`;
+      if (match.status === "finished") statusBadge = `<span class="status-badge status-finished">🏁 FINISHED</span>`;
+      else if (match.status === "upcoming") statusBadge = `<span class="status-badge status-upcoming">⏳ UPCOMING</span>`;
+
+      const statusMain = (match.status === "live")
+        ? (r.equation || match.statusText || "Live")
+        : (match.result || match.statusText || (match.status === "upcoming" ? "Upcoming" : "Finished"));
+
+      const batterRow = (p, isStrike) => p ? `
+        <div class="crex-batter">
+          <span class="bn">${p.shortName || p.name || "Batter"}${isStrike ? ' <span class="str">*</span>' : ''}</span>
+          <span class="bs">${p.runs ?? 0} (${p.balls ?? 0})</span>
+        </div>` : "";
+
       hero.innerHTML = `
-        <div class="hero-meta">
-          <div>${match.series || ""} ${match.matchDesc ? "• " + match.matchDesc : ""} ${match.format ? "• " + match.format : ""}</div>
-          <div>📍 ${match.venue || "Live Cricket"}</div>
+        <div class="crex-board">
+          <div style="font-size:0.82rem; color:#94a3b8; text-align:center;">
+            ${match.series || ""} ${match.matchDesc ? "• " + match.matchDesc : ""} ${match.format ? "• " + match.format : ""} ${match.venue ? "&nbsp;📍 " + match.venue : ""}
+          </div>
+          <div class="crex-board-top">
+            <div class="crex-teams">
+              <div class="crex-team-row ${isBatting1 ? "batting" : ""}">
+                <img class="crex-team-logo" src="${t1.logo || ""}" onerror="this.style.visibility='hidden'">
+                <div class="crex-team-body">
+                  <span class="crex-team-code">${t1.shortName || t1.code || "Team 1"}</span>
+                  <span class="crex-team-score">${teamScoreHTML(t1)}</span>
+                </div>
+              </div>
+              <div class="crex-team-row ${isBatting2 ? "batting" : ""}">
+                <img class="crex-team-logo" src="${t2.logo || ""}" onerror="this.style.visibility='hidden'">
+                <div class="crex-team-body">
+                  <span class="crex-team-code">${t2.shortName || t2.code || "Team 2"}</span>
+                  <span class="crex-team-score">${teamScoreHTML(t2)}</span>
+                </div>
+              </div>
+            </div>
+            <div class="crex-status-side">
+              <div>${statusBadge}</div>
+              <div class="crex-status-main ${isWon ? "win" : ""}">${statusMain}</div>
+              ${match.status === "live" && r.rrr ? `<div class="crex-status-sub">RRR: ${r.rrr}</div>` : ""}
+              ${match.status === "upcoming" && match.startTime ? `<div class="crex-status-sub">${new Date(match.startTime).toLocaleString()}</div>` : ""}
+            </div>
+          </div>
+
+          ${(r.striker || r.nonStriker) && match.status === "live" ? `
+          <div class="crex-batters">
+            ${batterRow(r.striker, true)}
+            ${batterRow(r.nonStriker, false)}
+            ${r.crr ? `<div class="crex-crr">CRR: <strong style="color:#f1f5f9; font-family:var(--mono);">${r.crr}</strong></div>` : ""}
+          </div>` : ""}
+
+          ${match.manOfMatch ? `<div style="font-size:0.85rem; color:#fbbf24;">🏆 Player of the Match: ${match.manOfMatch}</div>` : ""}
         </div>
-        <div class="hero-vs-grid">
-          <div class="hero-team">
-            <img src="${t1.logo || ""}" class="hero-team-logo" onerror="this.style.display='none'">
-            <div style="font-weight:700; font-size:1.15rem;">${t1.name || t1.code}</div>
-            <div class="hero-score">${t1.scoreRaw || "--"}</div>
-            ${t1.jersey ? `<img src="${t1.jersey}" class="hero-jersey" title="Official Jersey" onerror="this.style.display='none'">` : ""}
-          </div>
-          <div>
-            <div class="hero-vs">VS</div>
-            <div style="font-size:0.85rem; color:#9ca3af; margin-top:4px;">${match.statusText || "LIVE"}</div>
-          </div>
-          <div class="hero-team">
-            <img src="${t2.logo || ""}" class="hero-team-logo" onerror="this.style.display='none'">
-            <div style="font-weight:700; font-size:1.15rem;">${t2.name || t2.code}</div>
-            <div class="hero-score">${t2.scoreRaw || "--"}</div>
-            ${t2.jersey ? `<img src="${t2.jersey}" class="hero-jersey" title="Official Jersey" onerror="this.style.display='none'">` : ""}
-          </div>
-        </div>
-        ${match.statusText ? `<div class="hero-result-banner">${match.statusText}</div>` : ""}
       `;
 
       // Render Batters
@@ -885,18 +1024,58 @@
         bowlerBox.innerHTML = "<div style='color:#9ca3af; font-size:0.85rem;'>No active bowler details.</div>";
       }
 
-      // Recent Deliveries
+      // Last overs (over-by-over)
       const deliveriesCard = document.getElementById("recentDeliveriesCard");
       const ballsBox = document.getElementById("recentBallsBox");
-      if (r.recentBalls && r.recentBalls.length) {
+      const overs = (r.lastOvers || []).slice(-4);
+      if (overs.length) {
         deliveriesCard.style.display = "block";
-        ballsBox.innerHTML = r.recentBalls.slice(0, 16).map(b => `
-          <span style="background:${b.text === "4" || b.text === "6" ? "#047857" : b.text === "w" ? "#b91c1c" : "#1f2937"}; color:#fff; padding:3px 8px; border-radius:6px; font-family:var(--mono); font-size:0.75rem;">
-            ${b.over}: ${b.text}
-          </span>
-        `).join("");
+        deliveriesCard.querySelector(".card-title").textContent = "📊 Last Overs (Over-by-Over)";
+        ballsBox.innerHTML = `
+          <div class="ov-strip" style="width:100%;">
+            ${overs.map(o => `
+              <div class="ov-block">
+                <div class="ov-block-head"><span>${o.over || "Over"}</span><span class="tot">= ${o.total ?? 0}</span></div>
+                <div class="ov-balls">
+                  ${(o.balls || []).map(b => {
+                    const t = String(b).toLowerCase();
+                    let cls = "ov-ball";
+                    if (t === "4") cls += " b4";
+                    else if (t === "6") cls += " b6";
+                    else if (t === "w") cls += " bw";
+                    else if (t.includes("wd") || t.includes("nb") || t.includes("lb") || t.includes("b")) cls += " bx";
+                    return `<span class="${cls}">${b}</span>`;
+                  }).join("")}
+                </div>
+              </div>
+            `).join("")}
+          </div>
+        `;
       } else {
         deliveriesCard.style.display = "none";
+      }
+
+      // Fall of Wickets
+      const fowCard = document.getElementById("fowCard");
+      const fowInner = document.getElementById("fowBoxInner");
+      if (fowCard && fowInner) {
+        if (r.wickets && r.wickets.length) {
+          fowCard.style.display = "block";
+          fowInner.innerHTML = `
+            <div class="fow-grid">
+              ${r.wickets.map(w => `
+                <div class="fow-item">
+                  <span class="fo">${w.over || "--"}</span>
+                  <span class="fp">${w.player || "Batter"}</span>
+                  <span class="fd">${w.dismissal || w.dismissalType || "Out"}</span>
+                  <span class="fs">${w.score || ""} • ${w.runs ?? 0}(${w.balls ?? 0})</span>
+                </div>
+              `).join("")}
+            </div>
+          `;
+        } else {
+          fowCard.style.display = "none";
+        }
       }
     }
 

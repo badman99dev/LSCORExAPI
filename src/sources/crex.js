@@ -642,8 +642,10 @@ export async function getLiveMatches() {
     // 1. Must have valid teams
     if (!item.b || !item.c) continue;
 
-    // 2. Exclude finished matches (finishTime, es_id: 1, or won/lost in result)
-    if (item.finishTime || item.es_id === 1) continue;
+    // 2. Exclude finished matches. NOTE: `es_id` is NOT a reliable finished
+    // indicator (leagues like Emirates D10 carry es_id:1 for live & upcoming
+    // games too). Rely on finishTime + result text instead.
+    if (item.finishTime) continue;
     if (item.res && /won|defeat|drawn|abandoned|tied/i.test(item.res)) continue;
     if (item.result && /won|defeat|drawn|abandoned|tied/i.test(item.result)) continue;
 

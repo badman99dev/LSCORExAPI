@@ -326,7 +326,9 @@ async function loadPageState(code) {
     await refreshSlugMap();
     slug = slugMap?.[code];
   }
-  if (!slug) return null;
+  // CREX accepts any "<text>-<CODE>" slug; bare codes return 403.
+  // This lets us resolve future/upcoming matches not present in home feeds.
+  if (!slug) slug = `match-${code}`;
 
   const url = `https://crex.com/cricket-live-score/${slug}`;
   let r = await getText(url, { headers: { ...HEADERS, 'Accept-Encoding': 'br, gzip, deflate' }, timeout: 12000 });
@@ -975,8 +977,14 @@ export async function getMatchDetail(code) {
   sv = sv || {};
   const rich = buildRich(state || {}, code);
   const km = keyMeta.get(code) || {};
+  const meta = (state?.['https://stats.crickapi.com/live/getMatchMetaData'] || [])[0] || {};
+  const prelive = state?.['https://oc.crickapi.com/mapping/getHomeMapDatalivebrief'] ||
+                  state?.['https://oc.crickapi.com/mapping/getHomeMapDatamatchinfo'] || {};
+  const mapTeams = prelive.t || [];
+  const mapSeries = (prelive.s || [])[0] || {};
+  const mapVenue = (prelive.v || [])[0] || {};
 
-  // Extract team codes: from sv.t1f / sv.a ("8B.8M") or keyMeta
+  // Extract team codes: from sv.t1f / sv.a ("8B.8M"), keyMeta or match metadata
   let t1Code = sv.t1f || km.team1Code;
   let t2Code = sv.t2f || km.team2Code;
   if (!t1Code || !t2Code) {
@@ -986,6 +994,18 @@ export async function getMatchDetail(code) {
       t2Code = t2Code || parts[1];
     }
   }
+  if ((!t1Code || !t2Code) && mapTeams.length && (meta.team1 || meta.team2)) {
+    const byName = (n) => mapTeams.find((t) => t.n === n || t.sn === n)?.f_key;
+    t1Code = t1Code || byName(meta.team1);
+    t2Code = t2Code || byName(meta.team2);
+  }
+  if ((!t1Code || !t2Code) && mapTeams.length === 2) {
+    t1Code = t1Code || mapTeams[0].f_key;
+    t2Code = t2Code || mapTeams[1].f_key;
+  }
+
+  const mt1 = mapTeams.find((t) => t.f_key === t1Code) || {};
+  const mt2 = mapTeams.find((t) => t.f_key === t2Code) || {};
 
   // Resolve unknown team codes
   const missingTeams = [t1Code, t2Code].filter((c) => c && !teamCache.has(c));
@@ -1004,8 +1024,8 @@ export async function getMatchDetail(code) {
 
   const team1 = {
     code: t1Code,
-    name: t1Info.name || sv.t1 || sv.speech_names?.[t1Code] || t1Code,
-    shortName: t1Info.shortName || sv.t1Short || t1Code,
+    name: t1Info.name || mt1.n || sv.t1 || meta.team1 || t1Code,
+    shortName: t1Info.shortName || mt1.sn || sv.t1Short || t1Code,
     logo: ASSETS.TEAM_LOGO(t1Code),
     jersey: ASSETS.JERSEY_LIMITED(t1Code),
     score: scoreRaw1 ? parseScore(scoreRaw1) : null,
@@ -1015,8 +1035,8 @@ export async function getMatchDetail(code) {
 
   const team2 = {
     code: t2Code,
-    name: t2Info.name || sv.t2 || sv.speech_names?.[t2Code] || t2Code,
-    shortName: t2Info.shortName || sv.t2Short || t2Code,
+    name: t2Info.name || mt2.n || sv.t2 || meta.team2 || t2Code,
+    shortName: t2Info.shortName || mt2.sn || sv.t2Short || t2Code,
     logo: ASSETS.TEAM_LOGO(t2Code),
     jersey: ASSETS.JERSEY_LIMITED(t2Code),
     score: scoreRaw2 ? parseScore(scoreRaw2) : null,
@@ -1041,16 +1061,32 @@ export async function getMatchDetail(code) {
     }
   }
 
-  const resultText = sv.B || sv.result || rich.equation || (sv.e === 1 ? 'Live' : 'Match in Progress');
+  // Detect pre-live / upcoming matches (SSR has metadata but getSV3 is empty
+  // or carries a placeholder 0/0 score before the toss).
+  const startTime = meta.t || (sv.mt ? new Date(Number(sv.mt)).toISOString() : null);
+  const startMs = startTime && !isNaN(Date.parse(startTime)) ? Date.parse(startTime) : null;
+  const jRuns = parseInt((String(sv.j || '').match(/^(\d+)/) || [])[1] || '0', 10);
+  const hasInnings = Boolean(sv.k || sv.l || sv.m || sv.B || sv.A || jRuns > 0);
+  const status = sv.e === 0 ? 'finished'
+    : (hasInnings ? 'live' : (startMs && startMs > Date.now() ? 'upcoming' : 'live'));
+
+  const startDate = startMs ? new Date(startMs) : null;
+  const dateStr = startDate && !isNaN(startDate) ? `${startDate.getUTCFullYear()}/${startDate.getUTCMonth() + 1}/${startDate.getUTCDate()}` : null;
+
+  const resultText = sv.B || sv.result || rich.equation ||
+    (status === 'upcoming' ? (dateStr ? `Starts ${dateStr}` : 'Upcoming')
+      : status === 'finished' ? 'Finished' : (sv.e === 1 ? 'Live' : 'Match in Progress'));
 
   return {
     id: code,
-    series: rich.series || km.series || seriesCache.get(sv.sf)?.name || sv.sf || null,
-    matchDesc: rich.matchDesc || km.desc || (sv.mn ? `Match ${sv.mn}` : null),
-    venue: rich.venue || km.venue || venueCache.get(sv.v)?.name || sv.v || null,
-    format: rich.format || km.format || sv.fo || null,
-    status: sv.e === 0 ? 'finished' : 'live',
+    series: rich.series || km.series || seriesCache.get(meta.sf)?.name || mapSeries.n || sv.sf || null,
+    matchDesc: rich.matchDesc || km.desc || (meta.mn ? `Match ${meta.mn}` : (sv.mn ? `Match ${sv.mn}` : null)),
+    venue: rich.venue || km.venue || meta.v || mapVenue.n || venueCache.get(sv.v)?.name || sv.v || null,
+    format: rich.format || km.format || sv.fo || (meta.ft === 1 ? 'ODI' : null),
+    status,
     statusText: resultText,
+    startTime,
+    timestamp: startMs,
     result: sv.B || null,
     manOfMatch: sv.mm || null,
     teams: { team1, team2 },

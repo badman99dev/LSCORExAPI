@@ -544,21 +544,82 @@ function computeMultiDayScore(inn1, inn2) {
   return s1 || 'Yet to bat';
 }
 
-function formatLiveStatus(item) {
-  let status = item.res || item.result || 'Live';
+function inningsRuns(str) {
+  if (!str) return null;
+  const m = String(str).match(/^(\d+)/);
+  return m ? parseInt(m[1], 10) : null;
+}
+
+/**
+ * Replicates CREX's client-side status equation (from 19-es2015 bundle).
+ * In the CREX feed, the `a` field is empty for normal play, so the site
+ * derives the live equation (lead / trail / needs X runs) from the innings
+ * scores instead of showing the raw `res` (which may just be "Tea Break").
+ */
+function computeLiveEquation(item, t1Name, t2Name) {
+  const d = parseInt(item.d, 10) || 0;
+  const isMultiDay = /test|multi.?day|first.?class/i.test(`${item.fo || ''}`);
+
+  const jr = inningsRuns(item.j);
+  const kr = inningsRuns(item.k);
+  const lr = inningsRuns(item.l);
+  const mr = inningsRuns(item.m);
+
+  if (isMultiDay || d >= 3) {
+    const t1Total = (jr || 0) + (lr || 0);
+    const t2Total = (kr || 0) + (mr || 0);
+
+    if (mr != null) {
+      // 4th innings - team2 chasing
+      const wktsLeft = 10 - (parseInt(String(item.m).split('/')[1], 10) || 0);
+      const need = t1Total - t2Total + 1;
+      if (need <= 0) return `${t2Name} won by ${wktsLeft} ${wktsLeft === 1 ? 'wicket' : 'wickets'}`;
+      return `${t2Name} ${need === 1 ? 'need' : 'needs'} ${need} ${need === 1 ? 'run' : 'runs'} to win`;
+    }
+    if (lr != null) {
+      // 3rd innings - team1 batting
+      if (t1Total > t2Total) return `${t1Name} lead by ${t1Total - t2Total} runs`;
+      if (t1Total < t2Total) return `${t1Name} trail by ${t2Total - t1Total} runs`;
+      return 'Scores Level';
+    }
+    if (kr != null) {
+      // 2nd innings - team2 batting
+      if (t2Total > t1Total) return `${t2Name} lead by ${t2Total - t1Total} runs`;
+      if (t2Total < t1Total) return `${t2Name} trail by ${t1Total - t2Total} runs`;
+      return 'Scores Level';
+    }
+    return null;
+  }
+
+  if (kr != null) {
+    // limited overs chase - team2 batting
+    const wktsLeft = 10 - (parseInt(String(item.k).split('/')[1], 10) || 0);
+    const need = jr - kr + 1;
+    if (need <= 0) return `${t2Name} won by ${wktsLeft} ${wktsLeft === 1 ? 'wicket' : 'wickets'}`;
+    if (need === 1) return 'Scores Level';
+    return `${t2Name} needs ${need} runs to win`;
+  }
+
+  return null;
+}
+
+function formatLiveStatus(item, t1Name, t2Name) {
+  const isMultiDay = /test|multi.?day|first.?class/i.test(`${item.fo || ''}`);
+  let status = computeLiveEquation(item, t1Name, t2Name) || item.res || item.result || 'Live';
+
   if (item.ac && /rain|wet|weather/i.test(item.ac)) {
     status = 'Rain Delay';
   } else if (/match stopped/i.test(status) && item.ac) {
     status = `${status} (${item.ac})`;
   }
 
-  const isMultiDay = /test|multi.?day|first.?class/i.test(`${item.fo || ''}`);
   if (isMultiDay) {
-    let day = item.d;
-    if ((!day || day > 5) && item.ti) {
+    let day = null;
+    if (item.ti) {
       const elapsed = Math.floor((Date.now() - item.ti) / (24 * 60 * 60 * 1000)) + 1;
       if (elapsed >= 1 && elapsed <= 5) day = elapsed;
     }
+    if ((!day || day > 5) && item.d && item.d <= 5) day = item.d;
     if (day && day <= 5) {
       return `Day ${day} : ${status}`;
     }
@@ -679,7 +740,7 @@ export async function getLiveMatches() {
       venue: km.venue || venInfo?.name || item.vname || null,
       format: km.format || item.fo || null,
       status: 'live',
-      statusText: formatLiveStatus(item),
+      statusText: formatLiveStatus(item, team1.shortName, team2.shortName),
       battingTeam: km.battingTeam || (team1Batting ? t1Info.shortName : team2Batting ? t2Info.shortName : null),
       slug: km.slug || null,
       teams: {

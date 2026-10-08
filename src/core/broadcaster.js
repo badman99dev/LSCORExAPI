@@ -7,6 +7,11 @@
  * - Initial Snapshot: On connection, each client receives an immediate `event: snapshot`.
  * - Deep Diffing: Every tick, differences are computed and broadcast via `event: update`.
  * - Zero Timeout / Keep-Alive: Continuous heartbeat pings prevent proxy drops.
+ * - Live-Only Streaming: SSE is only kept open for LIVE matches.
+ *     * Non-live (upcoming / finished) matches receive the first `snapshot`
+ *       and are then closed immediately with an `event: end`.
+ *     * If an upstream poll reports the match is no longer live (concluded),
+ *       all subscribers get `event: end` and the stream is torn down.
  * - Auto-Teardown: When all subscribers for a match disconnect, upstream polling ceases.
  */
 
@@ -20,7 +25,7 @@ class MatchBroadcaster {
   constructor() {
     this.clients = new Set();               // Set of all connected SSE client objects
     this.matchSubs = new Map();             // matchId -> Set<client>
-    this.watchers = new Map();              // matchId -> { timer, isPolling, lastState }
+    this.watchers = new Map();              // matchId -> { timer, isPolling, lastState, ended }
   }
 
   /**
@@ -53,6 +58,8 @@ class MatchBroadcaster {
       res,
       matchId,
       connectedAt: Date.now(),
+      closed: false,
+      pingTimer: null,
       send: (event, data) => {
         try {
           res.write(`event: ${event}\ndata: ${JSON.stringify(data)}\n\n`);
@@ -68,7 +75,7 @@ class MatchBroadcaster {
     this.clients.add(client);
 
     // Ping timer to keep connection alive indefinitely
-    const pingTimer = setInterval(() => {
+    client.pingTimer = setInterval(() => {
       client.ping();
     }, PING_INTERVAL_MS);
 
@@ -78,53 +85,50 @@ class MatchBroadcaster {
     }
     this.matchSubs.get(matchId).add(client);
 
-    // Start single upstream watcher for this match if not already running
-    this.startWatcher(matchId);
-
-    // Send initial snapshot immediately
-    this.sendInitialSnapshot(client, matchId);
-
     // Clean up on disconnect
     req.on('close', () => {
-      clearInterval(pingTimer);
-      this.clients.delete(client);
-
-      const subs = this.matchSubs.get(matchId);
-      if (subs) {
-        subs.delete(client);
-        // If no more clients watching this match, stop upstream poller!
-        if (subs.size === 0) {
-          this.matchSubs.delete(matchId);
-          this.stopWatcher(matchId);
-        }
-      }
+      this.removeClient(client);
     });
+
+    // Send initial snapshot immediately, then decide whether to keep streaming
+    await this.sendInitialSnapshot(client, matchId);
   }
 
   async sendInitialSnapshot(client, matchId) {
     const watcher = this.watchers.get(matchId);
-    if (watcher && watcher.lastState) {
-      client.send('snapshot', { match: watcher.lastState, cached: true });
+    let match = watcher ? watcher.lastState : null;
+    let cached = Boolean(match);
+
+    if (!match) {
+      try {
+        match = await getMatchDetail(matchId);
+      } catch (_) {
+        match = null;
+      }
+      cached = false;
+    }
+
+    if (!match) {
+      client.send('snapshot', { error: 'Match data not available yet', matchId });
+      this.endClient(client, 'unavailable');
       return;
     }
 
-    try {
-      const data = await getMatchDetail(matchId);
-      if (data) {
-        if (watcher) watcher.lastState = data;
-        client.send('snapshot', { match: data, cached: false });
-      } else {
-        client.send('snapshot', { error: 'Match data not available yet', matchId });
-      }
-    } catch (err) {
-      client.send('snapshot', { error: err.message, matchId });
+    client.send('snapshot', { match, cached });
+
+    // Only LIVE matches keep the stream alive. Upcoming / finished matches
+    // get their one snapshot and are closed straight away.
+    if (match.status === 'live') {
+      this.startWatcher(matchId, match);
+    } else {
+      this.endClient(client, match.status);
     }
   }
 
   /**
    * Start a single upstream poller for matchId
    */
-  startWatcher(matchId) {
+  startWatcher(matchId, initialState = null) {
     if (this.watchers.has(matchId)) {
       return; // Already being watched by existing worker!
     }
@@ -132,31 +136,39 @@ class MatchBroadcaster {
     const watcher = {
       matchId,
       isPolling: false,
-      lastState: null,
+      lastState: initialState,
+      ended: false,
       timer: null,
     };
 
     const poll = async () => {
-      if (watcher.isPolling) return;
+      if (watcher.isPolling || watcher.ended) return;
       watcher.isPolling = true;
 
       try {
         const fresh = await getMatchDetail(matchId);
-        if (fresh) {
-          if (!watcher.lastState) {
+        if (!fresh) return;
+
+        // Match concluded upstream -> notify everyone and tear the stream down.
+        if (fresh.status !== 'live') {
+          watcher.lastState = fresh;
+          this.terminateWatcher(matchId, fresh.status);
+          return;
+        }
+
+        if (!watcher.lastState) {
+          watcher.lastState = fresh;
+          this.broadcast(matchId, 'snapshot', { match: fresh, cached: false });
+        } else {
+          const changes = diffResponse(watcher.lastState, fresh);
+          if (changes.length > 0) {
+            this.broadcast(matchId, 'update', {
+              id: matchId,
+              timestamp: new Date().toISOString(),
+              changes,
+              match: fresh,
+            });
             watcher.lastState = fresh;
-            this.broadcast(matchId, 'snapshot', { match: fresh });
-          } else {
-            const changes = diffResponse(watcher.lastState, fresh);
-            if (changes.length > 0) {
-              this.broadcast(matchId, 'update', {
-                id: matchId,
-                timestamp: new Date().toISOString(),
-                changes,
-                match: fresh,
-              });
-              watcher.lastState = fresh;
-            }
           }
         }
       } catch (e) {
@@ -179,8 +191,57 @@ class MatchBroadcaster {
   stopWatcher(matchId) {
     const watcher = this.watchers.get(matchId);
     if (watcher) {
+      watcher.ended = true;
       clearInterval(watcher.timer);
       this.watchers.delete(matchId);
+    }
+  }
+
+  /**
+   * Notify + close every subscriber of a match (used when it is no longer live).
+   */
+  terminateWatcher(matchId, reason) {
+    const watcher = this.watchers.get(matchId);
+    if (watcher) watcher.ended = true;
+
+    this.broadcast(matchId, 'end', { matchId, reason, live: false });
+
+    const subs = this.matchSubs.get(matchId);
+    if (subs) {
+      for (const client of [...subs]) {
+        try { client.res.end(); } catch (_) {}
+        this.removeClient(client);
+      }
+    }
+    this.stopWatcher(matchId);
+  }
+
+  /**
+   * Send `end`, close the response and remove a single client.
+   */
+  endClient(client, reason) {
+    client.send('end', { matchId: client.matchId, reason, live: false });
+    try { client.res.end(); } catch (_) {}
+    this.removeClient(client);
+  }
+
+  /**
+   * Remove a client from all bookkeeping (idempotent).
+   */
+  removeClient(client) {
+    if (client.closed) return;
+    client.closed = true;
+    if (client.pingTimer) clearInterval(client.pingTimer);
+    this.clients.delete(client);
+
+    const subs = this.matchSubs.get(client.matchId);
+    if (subs) {
+      subs.delete(client);
+      // If no more clients watching this match, stop upstream poller!
+      if (subs.size === 0) {
+        this.matchSubs.delete(client.matchId);
+        this.stopWatcher(client.matchId);
+      }
     }
   }
 

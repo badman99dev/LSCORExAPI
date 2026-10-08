@@ -680,6 +680,7 @@
     let allMatchesData = { all: [], live: [], upcoming: [], finished: [] };
     let activeMatchId = null;
     let eventSource = null;
+    let sseEnded = false;
 
     async function fetchMatches() {
       try {
@@ -970,6 +971,7 @@
       btn.className = "btn btn-danger";
 
       logTerminal("CONNECT", `Connecting to /matches/${activeMatchId}/stream`);
+      sseEnded = false;
       eventSource = new EventSource(`/matches/${activeMatchId}/stream`);
 
       eventSource.onopen = () => {
@@ -989,13 +991,32 @@
         if (payload.match) renderMatchScore(payload.match);
       });
 
+      eventSource.addEventListener("end", (e) => {
+        sseEnded = true;
+        let reason = "";
+        try { reason = JSON.parse(e.data).reason || ""; } catch (_) {}
+        logTerminal("END", `Stream closed by server (${reason || "not live"}).`);
+        const t = document.getElementById("sseStatusText");
+        const b = document.getElementById("toggleSseBtn");
+        const d = document.getElementById("sseDot");
+        if (d) d.style.display = "none";
+        if (t) {
+          t.textContent = reason === "live" ? "Stream ended" : `Match is ${reason || "not live"} — streaming stopped`;
+          t.style.color = "var(--text-muted)";
+        }
+        if (b) { b.textContent = "⚡ Start Live Stream"; b.className = "btn"; }
+        if (eventSource) { eventSource.close(); eventSource = null; }
+      });
+
       eventSource.onerror = () => {
+        if (sseEnded) return;
         text.textContent = "Reconnecting...";
         text.style.color = "#ef4444";
       };
     }
 
     function stopSSE() {
+      sseEnded = true;
       if (eventSource) {
         eventSource.close();
         eventSource = null;

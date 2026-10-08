@@ -674,6 +674,7 @@ es.addEventListener("update", e => console.log("Live update diff:", JSON.parse(e
 
     let activeMatchData = null;
     let eventSource = null;
+    let sseEnded = false;
 
     // Load initial match details
     async function loadMatch() {
@@ -1006,6 +1007,7 @@ es.addEventListener("update", e => console.log("Live update diff:", JSON.parse(e
 
       logTerminal("CONNECT", `Opening EventSource stream: /matches/${matchId}/stream`);
 
+      sseEnded = false;
       eventSource = new EventSource(`/matches/${matchId}/stream`);
 
       eventSource.onopen = () => {
@@ -1034,13 +1036,27 @@ es.addEventListener("update", e => console.log("Live update diff:", JSON.parse(e
         }
       });
 
+      eventSource.addEventListener("end", (e) => {
+        sseEnded = true;
+        let reason = "";
+        try { reason = JSON.parse(e.data).reason || ""; } catch (_) {}
+        logTerminal("END", `Stream closed by server (${reason || "not live"}).`);
+        if (indicator) indicator.style.display = "none";
+        btn.textContent = "⚡ Start Live Stream";
+        btn.className = "btn";
+        statusText.textContent = reason === "live" ? "Match concluded — streaming ended" : `Match is ${reason || "not live"} — streaming stopped`;
+        if (eventSource) { eventSource.close(); eventSource = null; }
+      });
+
       eventSource.onerror = (err) => {
+        if (sseEnded) return;
         statusText.textContent = "Reconnecting SSE...";
         logTerminal("ERROR", "Connection dropped, browser retrying automatically...");
       };
     }
 
     function stopSSE() {
+      sseEnded = true;
       if (eventSource) {
         eventSource.close();
         eventSource = null;

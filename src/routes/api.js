@@ -272,9 +272,12 @@ router.get("/matches/:id/scorecard", handleScorecard);
 router.get("/events/:id/scorecard", handleScorecard);
 
 // Canonical SSE Streaming Route for a specific match
+// Optional ?delay=N (seconds, 0-30) puts the client N seconds behind live.
 const handleStream = (req, res) => {
   const matchId = req.params.id;
-  broadcaster.handleClient(req, res, matchId);
+  const rawDelay = parseFloat(req.query.delay);
+  const delaySec = Number.isFinite(rawDelay) ? Math.max(0, Math.min(30, rawDelay)) : 0;
+  broadcaster.handleClient(req, res, matchId, Math.round(delaySec * 1000));
 };
 
 router.get("/matches/:id/stream", handleStream);

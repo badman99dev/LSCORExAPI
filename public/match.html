@@ -399,6 +399,58 @@
       color: #94a3b8;
       margin-top: 4px;
     }
+    .crex-top-right {
+      display: flex;
+      align-items: center;
+      gap: 14px;
+      flex: 0 0 auto;
+    }
+    .crex-lastball {
+      width: 54px;
+      height: 54px;
+      border-radius: 12px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-weight: 800;
+      font-size: 1.5rem;
+      background: #1e293b;
+      color: #e2e8f0;
+      border: 1.5px solid #334155;
+      box-shadow: 0 0 0 3px rgba(30,41,59,0.35);
+      flex: 0 0 auto;
+      line-height: 1;
+      text-align: center;
+      padding: 2px;
+    }
+    .crex-lastball.lb-4, .crex-lastball.lb-6 {
+      background: #16a34a;
+      border-color: #22c55e;
+      color: #fff;
+      box-shadow: 0 0 0 3px rgba(34,197,94,0.28);
+    }
+    .crex-lastball.lb-wicket {
+      background: #dc2626;
+      border-color: #ef4444;
+      color: #fff;
+      box-shadow: 0 0 0 3px rgba(239,68,68,0.28);
+      font-size: 1rem;
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+    }
+    .crex-lastball.lb-extra {
+      background: #d97706;
+      border-color: #f59e0b;
+      color: #fff;
+      box-shadow: 0 0 0 3px rgba(245,158,11,0.28);
+      font-size: 1rem;
+    }
+    .crex-lastball.lb-flash { animation: lbFlash 0.55s ease; }
+    @keyframes lbFlash {
+      0%   { transform: scale(0.6); opacity: 0.3; }
+      60%  { transform: scale(1.12); opacity: 1; }
+      100% { transform: scale(1); opacity: 1; }
+    }
     .crex-batters {
       display: flex;
       gap: 20px;
@@ -881,6 +933,7 @@ es.addEventListener("update", e => console.log("Live update diff:", JSON.parse(e
     let activeMatchData = null;
     let eventSource = null;
     let sseEnded = false;
+    let lastBallKey = null;
 
     // Load initial match details
     async function loadMatch() {
@@ -933,6 +986,28 @@ es.addEventListener("update", e => console.log("Live update diff:", JSON.parse(e
       return `${main}${overs ? `<span class="ov">(${overs} ov)</span>` : ""}`;
     }
 
+    function lastBallHTML(cb) {
+      if (!cb) return "";
+      let cls = "crex-lastball";
+      let txt = "";
+      if (cb.isWicket) {
+        cls += " lb-wicket";
+        txt = cb.shortLabel || "W";
+      } else if (cb.isBoundary) {
+        cls += " lb-" + cb.value;
+        txt = cb.value;
+      } else if (cb.isExtra) {
+        cls += " lb-extra";
+        txt = cb.value;
+      } else {
+        txt = cb.value;
+      }
+      const title = cb.isWicket
+        ? (cb.label ? cb.label + (cb.player ? " — " + cb.player : "") : "Wicket")
+        : `Over ${cb.over} — ${cb.value} run${cb.value === "1" ? "" : "s"}`;
+      return `<div class="${cls}" id="lastBallBox" title="${String(title).replace(/"/g, "&quot;")}">${txt}</div>`;
+    }
+
     function renderHero(m) {
       const box = document.getElementById("matchHeroBox");
       const t1 = m.teams?.team1 || {};
@@ -977,11 +1052,14 @@ es.addEventListener("update", e => console.log("Live update diff:", JSON.parse(e
                 </div>
               </div>
             </div>
-            <div class="crex-status-side">
-              <div>${statusBadge}</div>
-              <div class="crex-status-main ${isWon ? "win" : ""}" style="margin-top:8px;">${statusMain}</div>
-              ${m.status === "live" && r.rrr ? `<div class="crex-status-sub">RRR: ${r.rrr}</div>` : ""}
-              ${m.status === "upcoming" && m.startTime ? `<div class="crex-status-sub">${new Date(m.startTime).toLocaleString()}</div>` : ""}
+            <div class="crex-top-right">
+              ${m.status === "live" && r.currentBall ? lastBallHTML(r.currentBall) : ""}
+              <div class="crex-status-side">
+                <div>${statusBadge}</div>
+                <div class="crex-status-main ${isWon ? "win" : ""}" style="margin-top:8px;">${statusMain}</div>
+                ${m.status === "live" && r.rrr ? `<div class="crex-status-sub">RRR: ${r.rrr}</div>` : ""}
+                ${m.status === "upcoming" && m.startTime ? `<div class="crex-status-sub">${new Date(m.startTime).toLocaleString()}</div>` : ""}
+              </div>
             </div>
           </div>
 
@@ -995,6 +1073,18 @@ es.addEventListener("update", e => console.log("Live update diff:", JSON.parse(e
           ${m.manOfMatch ? `<div style="font-size:0.85rem; color:#fbbf24;">🏆 Player of the Match: ${m.manOfMatch}</div>` : ""}
         </div>
       `;
+
+      const lb = r.currentBall;
+      const lbKey = lb ? `${lb.over}|${lb.value}|${lb.isWicket ? lb.label : ""}` : null;
+      if (lbKey && lbKey !== lastBallKey) {
+        const box = document.getElementById("lastBallBox");
+        if (box && lastBallKey !== null) {
+          box.classList.remove("lb-flash");
+          void box.offsetWidth;
+          box.classList.add("lb-flash");
+        }
+        lastBallKey = lbKey;
+      }
     }
 
     function renderAction(m) {

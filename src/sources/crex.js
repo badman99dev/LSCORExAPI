@@ -337,7 +337,7 @@ function buildRich(state, code) {
       wagon: b.wagon_w && b.wagon_w !== 'NA' ? b.wagon_w : null,
       commentary: b.c2 ? stripHtml(b.c2) : null,
       isBoundary: String(b.b) === '4' || String(b.b) === '6',
-      isWicket: String(b.b).toLowerCase() === 'w',
+      isWicket: /^[0-9]*w$/i.test(String(b.b)),
       isExtra: /wd|nb|wide|no.?ball/i.test(String(b.b)),
     }));
   }
@@ -358,6 +358,47 @@ function buildRich(state, code) {
       fkey: w.player_fkey || null,
       head: w.urlSVG || ASSETS.PLAYER_HEAD(w.player_fkey),
     }));
+  }
+
+  // Latest completed delivery — drives the big "current ball" indicator on CREX.
+  const latest = feed
+    .filter((b) => b.type === 'b' && b.b != null)
+    .sort((a, b) => (parseFloat(b.o) || 0) - (parseFloat(a.o) || 0))[0];
+  if (latest) {
+    if (/^[0-9]*w$/i.test(String(latest.b))) {
+      const wEntry = feed.find((x) => x.type === 'w' && x.o === latest.o) || {};
+      const label = dismissalLabel(wEntry);
+      const rawVal = String(latest.b || '').toUpperCase();
+      rich.currentBall = {
+        over: latest.o || null,
+        value: rawVal || 'W',
+        isWicket: true,
+        isBoundary: false,
+        isExtra: false,
+        label: label || 'OUT',
+        shortLabel: label === 'Caught' ? 'C' : label === 'Run Out' ? 'RO' : label === 'LBW' ? 'LBW'
+          : label === 'Stumped' ? 'ST' : label === 'Bowled' ? 'B'
+          : /caught.*bowled|c ?& ?b/i.test(String(wEntry.wicketDesc || '')) ? 'C&B' : rawVal || 'W',
+        player: wEntry.player_fullname || wEntry.n || latest.player_fullname || null,
+        runs: nnum(wEntry.r),
+        balls: nnum(wEntry.s),
+        dismissal: wEntry.wicketDesc || null,
+      };
+    } else {
+      const val = String(latest.b);
+      const isExtra = /wd|nb|wide|no.?ball/i.test(val);
+      const num = parseInt(val, 10);
+      rich.currentBall = {
+        over: latest.o || null,
+        value: val,
+        isWicket: false,
+        isBoundary: val === '4' || val === '6',
+        isExtra,
+        label: val,
+        shortLabel: val,
+        runs: !isNaN(num) ? num : null,
+      };
+    }
   }
 
   // Timeline

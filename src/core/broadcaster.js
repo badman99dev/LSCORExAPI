@@ -12,7 +12,7 @@
  *       and are then closed immediately with an `event: end`.
  *     * If an upstream poll reports the match is no longer live (concluded),
  *       all subscribers get `event: end` and the stream is torn down.
- * - Per-Client Delay (DVR): A client may request `?delay=N` (seconds, 0-30).
+ * - Per-Client Delay (DVR): A client may request `?delay=N` (seconds, 0-60).
  *     * delay = 0  -> instant live (unchanged behaviour).
  *     * delay > 0  -> the client is served N seconds behind live. A short
  *       in-memory history ring buffer lets late joiners receive the correct

@@ -29,9 +29,46 @@ Deployable on **Render** (via `render.yaml`), VPS, Docker, or any Node.js enviro
 | `GET` | `/matches/:id/playing-xi` | Playing XI alias with announcement status. |
 | `GET` | `/matches/:id/commentary` | Ball-by-ball commentary, shot types, wagons, and fall of wickets. |
 | `GET` | `/matches/:id/scorecard` | Structured scorecard breakdown for both innings. |
+| `GET`/`POST` | `/search?q=:query` | Search teams, series, and players by name. |
+| `GET` | `/series/:id/points-table` | Series points table & standings. |
+| `GET` | `/series/:id/team-squad` | Series squads with player photos & roles. |
+| `GET` | `/series/:id/matches` | All fixtures in a series with scores & venues. |
+| `GET` | `/team/:id` | Team overview, ranking, trophies, recent form & bio. |
+| `GET` | `/team/:id/matches` | All international & domestic fixtures for a team. |
+| `GET`/`POST` | `/find-match` | **Advanced finder** — give two team names + optional start time, returns the exact fixture. |
 | `GET` | `/stats` | Broadcaster metrics: active SSE clients, watched matches, worker pool. |
 | `GET` | `/health` | Server uptime and health status. |
 | `GET` | `/docs` | Interactive Swagger-style documentation & real-time SSE stream tester. |
+
+---
+
+## 🔎 Advanced Match Finder
+
+Give it two team names and (optionally) a match start time — it works out *which* fixture
+you mean, then returns the full match object.
+
+**How it works:**
+1. Searches each team name → takes the top **2** Team results for both teams.
+2. For every ordered combo — `1x1 → 1x2 → 2x1 → 2x2` — fetches both teams'
+   *Team Matches & Tours* and intersects them by match id.
+3. Inside each combo, picks the common fixture whose start time is closest to the
+   supplied start time (exact match → same UTC day → nearest). `1x1` (top × top)
+   has the highest priority; the first combo that yields a match wins.
+
+```bash
+# By ISO start time
+GET /find-match?team1=India&team2=Australia&startTime=2027-10-07T08:00:00Z
+
+# By epoch seconds or milliseconds
+GET /find-match?team1=India&team2=Australia&startTime=1822896000
+
+# POST body
+POST /find-match  { "team1": "India", "team2": "Australia", "startTime": "2027-10-07T08:00:00Z" }
+```
+
+**Optional query params:** `toleranceMs` (default `10800000` = 3h) or `toleranceMin`,
+`topN` (default `2`). Response includes `matched`, `strategy` (winning combo), `match`,
+`candidates`, and a full `attempts` trace.
 
 ---
 

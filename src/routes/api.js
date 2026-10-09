@@ -21,6 +21,7 @@ import {
   getTeamOverview,
   getTeamMatches,
 } from "../sources/crexSeriesTeam.js";
+import { findMatch } from "../sources/matchFinder.js";
 import { broadcaster } from "../core/broadcaster.js";
 import path from "path";
 import { fileURLToPath } from "url";
@@ -311,6 +312,46 @@ router.post("/search", handleSearch);
 router.get("/api/search", handleSearch);
 router.post("/api/search", handleSearch);
 router.post("/api/search/redisearch", handleSearch);
+
+// ==========================================
+// ADVANCED MATCH FINDER
+// Give two team names + an optional start time and the API figures
+// out which fixture you mean. Tries the search results for both
+// teams (top 2 each) in priority order 1x1 -> 1x2 -> 2x1 -> 2x2,
+// intersecting their "Team Matches & Tours" and time-matching the
+// common fixtures against the supplied start time.
+// ==========================================
+const handleFindMatch = async (req, res) => {
+  try {
+    const src = { ...req.query, ...(req.body || {}) };
+    const team1 = src.team1 || src.teamA || src.t1 || src.home || src.team;
+    const team2 = src.team2 || src.teamB || src.t2 || src.away || src.opponent;
+    const startTime = src.startTime || src.start_time || src.time || src.start || src.date;
+    const toleranceMs = src.toleranceMs
+      ? Number(src.toleranceMs)
+      : (src.toleranceMin ? Number(src.toleranceMin) * 60000 : undefined);
+    const topN = src.topN ? Number(src.topN) : undefined;
+
+    if (!team1 || !team2) {
+      return res.status(400).json({
+        success: false,
+        error: "Both 'team1' and 'team2' are required",
+        usage: "/find-match?team1=India&team2=Australia&startTime=2027-10-07T00:00:00Z",
+      });
+    }
+
+    const result = await findMatch({ team1, team2, startTime, toleranceMs, topN });
+    res.json({ success: true, query: { team1, team2, startTime: startTime || null }, ...result });
+  } catch (err) {
+    res.status(500).json({ success: false, error: err.message });
+  }
+};
+
+router.get("/find-match", handleFindMatch);
+router.get("/match-finder", handleFindMatch);
+router.post("/find-match", handleFindMatch);
+router.get("/api/find-match", handleFindMatch);
+router.post("/api/find-match", handleFindMatch);
 
 // ==========================================
 // SERIES ROUTES (Points Table, Squads, Matches)

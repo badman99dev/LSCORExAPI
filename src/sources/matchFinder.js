@@ -27,19 +27,24 @@ function flattenMatches(tm) {
   return out;
 }
 
+const EPOCH_MS_MIN = 0;
+const EPOCH_MS_MAX = 4102444800000; // year 2100
+
+/**
+ * Parse a start time supplied as epoch milliseconds (since 1970-01-01 UTC).
+ * Accepts a numeric value or a numeric string. Returns { ms, error }.
+ */
 function parseStartTime(input) {
-  if (input == null || input === '') return null;
-  if (typeof input === 'number' && Number.isFinite(input)) {
-    return input < 1e12 ? input * 1000 : input;
+  if (input == null || input === '') return { ms: null, error: 'startTime is required' };
+  const raw = typeof input === 'number' ? input : String(input).trim();
+  if (raw === '' || !/^-?\d+(\.\d+)?$/.test(String(raw))) {
+    return { ms: null, error: 'startTime must be epoch milliseconds (e.g. 1822896000000)' };
   }
-  const raw = String(input).trim();
-  if (!raw) return null;
-  if (/^\d+$/.test(raw)) {
-    const n = Number(raw);
-    return n < 1e12 ? n * 1000 : n;
+  const n = Number(raw);
+  if (!Number.isFinite(n) || n < EPOCH_MS_MIN || n > EPOCH_MS_MAX) {
+    return { ms: null, error: 'startTime out of range; must be epoch milliseconds since 1970' };
   }
-  const d = Date.parse(raw);
-  return Number.isNaN(d) ? null : d;
+  return { ms: Math.round(n), error: null };
 }
 
 function sameUtcDay(a, b) {
@@ -56,12 +61,16 @@ function teamSummary(t) {
  * @param {object} opts
  * @param {string} opts.team1          - first team search term
  * @param {string} opts.team2          - second team search term
- * @param {string|number} [opts.startTime] - match start time (ISO string or epoch sec/ms)
+ * @param {number|string} opts.startTime - match start time as epoch milliseconds (since 1970) [REQUIRED]
  * @param {number} [opts.toleranceMs]  - max allowed |delta| when time matching (default 3h)
  * @param {number} [opts.topN]         - how many team search hits to consider (default 2)
  */
 export async function findMatch({ team1, team2, startTime, toleranceMs = 3 * 60 * 60 * 1000, topN = 2 } = {}) {
-  const start = parseStartTime(startTime);
+  const parsed = parseStartTime(startTime);
+  if (parsed.error) {
+    return { matched: false, reason: parsed.error, invalidStartTime: true, startTime: null };
+  }
+  const start = parsed.ms;
 
   const [r1, r2] = await Promise.all([searchCricket(team1 || ''), searchCricket(team2 || '')]);
   const cand1 = r1.filter((r) => r.category === 'Team').slice(0, topN);
@@ -123,9 +132,7 @@ export async function findMatch({ team1, team2, startTime, toleranceMs = 3 * 60 
       continue;
     }
 
-    const refNow = Date.now();
-    const ref = start != null ? start : refNow;
-    const timeSource = start != null ? 'startTime' : 'now';
+    const ref = start;
 
     const withinTolerance = common.filter(
       (m) => m.timestamp && Math.abs(m.timestamp - ref) <= toleranceMs
@@ -145,10 +152,6 @@ export async function findMatch({ team1, team2, startTime, toleranceMs = 3 * 60 
       sameDay.sort(byCloseness);
       chosen = sameDay[0];
       timeDeltaMs = chosen.timestamp - ref;
-    } else if (start == null) {
-      // No startTime given: pick the fixture closest to NOW (either side).
-      chosen = [...common].sort(byCloseness)[0] || common[0];
-      timeDeltaMs = chosen.timestamp ? chosen.timestamp - refNow : null;
     }
 
     attempt.bestTimeMatch = chosen
@@ -164,8 +167,7 @@ export async function findMatch({ team1, team2, startTime, toleranceMs = 3 * 60 
         strategy: attempt.combo,
         teams: { team1: teamSummary(t1), team2: teamSummary(t2) },
         startTime: start,
-        timeSource,
-        referenceTime: ref,
+        referenceTime: start,
         timeDeltaMs,
         match: chosen,
         candidates,
@@ -179,10 +181,9 @@ export async function findMatch({ team1, team2, startTime, toleranceMs = 3 * 60 
     matched: false,
     reason: !hadCommon
       ? 'no common match found between the searched teams'
-      : (start != null ? 'no common match within time tolerance' : 'no common match found'),
+      : 'no common match within time tolerance',
     startTime: start,
-    timeSource: start != null ? 'startTime' : 'now',
-    referenceTime: start != null ? start : Date.now(),
+    referenceTime: start,
     teams1: cand1.map(teamSummary),
     teams2: cand2.map(teamSummary),
     attempts,

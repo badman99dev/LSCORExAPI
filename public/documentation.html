@@ -733,13 +733,14 @@ Content-Type: application/json
         <h2><span class="ico">⭐</span> Advanced Match Finder</h2>
         <p class="group-desc">Give two team names and (optionally) a match start time. The API works out <em>which</em> fixture you mean and returns the full match object.</p>
         <div class="endpoint">
-          <div class="head"><span class="method m-get">GET</span><span class="method m-post">POST</span><span class="path">/find-match</span><a class="btn try" href="/find-match?team1=India&team2=Australia&startTime=2027-10-07T08:00:00Z" target="_blank">Try ↗</a></div>
+          <div class="head"><span class="method m-get">GET</span><span class="method m-post">POST</span><span class="path">/find-match</span><a class="btn try" href="/find-match?team1=India&team2=Australia&startTime=1822896000000" target="_blank">Try ↗</a></div>
           <div class="desc">Advanced finder. Aliases: <code>/match-finder</code>, <code>/api/find-match</code>.</div>
+          <div class="note">All three parameters are <strong>required</strong>, including <code>startTime</code> — supplied as <strong>epoch milliseconds since 1970</strong> (e.g. <code>1822896000000</code>).</div>
           <table class="params">
             <tr><th>Param</th><th>Type</th><th>Description</th></tr>
             <tr><td><code>team1</code></td><td class="req">required</td><td>First team search term. Aliases: <code>teamA</code>, <code>t1</code>, <code>home</code>, <code>team</code>.</td></tr>
             <tr><td><code>team2</code></td><td class="req">required</td><td>Second team search term. Aliases: <code>teamB</code>, <code>t2</code>, <code>away</code>, <code>opponent</code>.</td></tr>
-            <tr><td><code>startTime</code></td><td class="opt">optional</td><td>Match start time — ISO string or epoch seconds/ms. Aliases: <code>start_time</code>, <code>time</code>, <code>start</code>, <code>date</code>.</td></tr>
+            <tr><td><code>startTime</code></td><td class="req">required</td><td>Match start time as <strong>epoch milliseconds since 1970</strong> — number or numeric string. Aliases: <code>start_time</code>, <code>time</code>, <code>start</code>, <code>date</code>.</td></tr>
             <tr><td><code>toleranceMs</code></td><td class="opt">optional</td><td>Max |delta| for time matching. Default <code>10800000</code> (3h). Alt: <code>toleranceMin</code>.</td></tr>
             <tr><td><code>topN</code></td><td class="opt">optional</td><td>How many team search hits to consider per team. Default <code>2</code>.</td></tr>
           </table>
@@ -747,22 +748,16 @@ Content-Type: application/json
           <ol style="color:var(--text-muted); font-size:0.86rem; padding-left:22px; margin-top:8px;">
             <li>Searches both team names → takes the top <code>topN</code> Team results for each.</li>
             <li>For combos <code>1x1 → 1x2 → 2x1 → 2x2</code>, fetches both teams' <em>Team Matches &amp; Tours</em> and intersects by match id.</li>
-            <li>Picks the common fixture closest to the start time (exact → same UTC day → nearest).</li>
-            <li>First combo (in priority order) that yields a match wins. If no <code>startTime</code>, the fixture closest to <strong>now</strong> (either direction) is returned.</li>
+            <li>Picks the common fixture closest to <code>startTime</code> (exact → same UTC day → nearest).</li>
+            <li>First combo (in priority order) that yields a match wins.</li>
           </ol>
           <div class="code-head"><span class="block-title" style="margin:0;">Examples</span></div>
-          <pre><span class="c"># ISO start time</span>
-GET /find-match?team1=India&amp;team2=Australia&amp;startTime=2027-10-07T08:00:00Z
-
-<span class="c"># Epoch seconds</span>
-GET /find-match?team1=India&amp;team2=Australia&amp;startTime=1822896000
-
-<span class="c"># No time -> closest to now</span>
-GET /find-match?team1=India&amp;team2=Australia
+          <pre><span class="c"># Epoch milliseconds (required)</span>
+GET /find-match?team1=India&amp;team2=Australia&amp;startTime=1822896000000
 
 <span class="c"># POST body</span>
 POST /find-match
-{ <span class="k">"team1"</span>: <span class="s">"India"</span>, <span class="k">"team2"</span>: <span class="s">"Australia"</span>, <span class="k">"startTime"</span>: <span class="s">"2027-10-07T08:00:00Z"</span> }
+{ <span class="k">"team1"</span>: <span class="s">"India"</span>, <span class="k">"team2"</span>: <span class="s">"Australia"</span>, <span class="k">"startTime"</span>: <span class="s">1822896000000</span> }
 </pre>
           <div class="block-title">Response</div>
           <pre>{
@@ -773,8 +768,8 @@ POST /find-match
     <span class="k">"team1"</span>: { <span class="k">"name"</span>: <span class="s">"India"</span>, <span class="k">"slug"</span>: <span class="s">"india-O"</span>, <span class="k">"code"</span>: <span class="s">"O"</span> },
     <span class="k">"team2"</span>: { <span class="k">"name"</span>: <span class="s">"Australia"</span>, <span class="k">"slug"</span>: <span class="s">"australia-Q"</span>, <span class="k">"code"</span>: <span class="s">"Q"</span> }
   },
-  <span class="k">"startTime"</span>: <span class="s">1791572400000</span>,
-  <span class="k">"timeSource"</span>: <span class="s">"startTime"</span>,
+  <span class="k">"startTime"</span>: <span class="s">1822896000000</span>,
+  <span class="k">"referenceTime"</span>: <span class="s">1822896000000</span>,
   <span class="k">"timeDeltaMs"</span>: <span class="s">0</span>,
   <span class="k">"match"</span>: {
     <span class="k">"id"</span>: <span class="s">"14P3"</span>, <span class="k">"date"</span>: <span class="s">"10/7/2027"</span>,

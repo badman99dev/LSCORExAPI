@@ -315,8 +315,8 @@ router.post("/api/search/redisearch", handleSearch);
 
 // ==========================================
 // ADVANCED MATCH FINDER
-// Give two team names + an optional start time and the API figures
-// out which fixture you mean. Tries the search results for both
+// Give two team names + a required start time (epoch ms since 1970) and the
+// API figures out which fixture you mean. Tries the search results for both
 // teams (top 2 each) in priority order 1x1 -> 1x2 -> 2x1 -> 2x2,
 // intersecting their "Team Matches & Tours" and time-matching the
 // common fixtures against the supplied start time.
@@ -332,16 +332,29 @@ const handleFindMatch = async (req, res) => {
       : (src.toleranceMin ? Number(src.toleranceMin) * 60000 : undefined);
     const topN = src.topN ? Number(src.topN) : undefined;
 
-    if (!team1 || !team2) {
+    if (!team1 || !team2 || startTime == null || startTime === '') {
+      const missing = [];
+      if (!team1) missing.push("team1");
+      if (!team2) missing.push("team2");
+      if (startTime == null || startTime === '') missing.push("startTime");
       return res.status(400).json({
         success: false,
-        error: "Both 'team1' and 'team2' are required",
-        usage: "/find-match?team1=India&team2=Australia&startTime=2027-10-07T00:00:00Z",
+        error: `Missing required parameter(s): ${missing.join(", ")}`,
+        hint: "startTime must be epoch milliseconds since 1970, e.g. 1822896000000",
+        usage: "/find-match?team1=India&team2=Australia&startTime=1822896000000",
       });
     }
 
     const result = await findMatch({ team1, team2, startTime, toleranceMs, topN });
-    res.json({ success: true, query: { team1, team2, startTime: startTime || null }, ...result });
+    if (result.invalidStartTime) {
+      return res.status(400).json({
+        success: false,
+        error: result.reason,
+        hint: "startTime must be epoch milliseconds since 1970, e.g. 1822896000000",
+        usage: "/find-match?team1=India&team2=Australia&startTime=1822896000000",
+      });
+    }
+    res.json({ success: true, query: { team1, team2, startTime }, ...result });
   } catch (err) {
     res.status(500).json({ success: false, error: err.message });
   }

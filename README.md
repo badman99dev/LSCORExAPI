@@ -45,8 +45,8 @@ Deployable on **Render** (via `render.yaml`), VPS, Docker, or any Node.js enviro
 
 ## 🔎 Advanced Match Finder
 
-Give it two team names and (optionally) a match start time — it works out *which* fixture
-you mean, then returns the full match object.
+Give it two team names and a **required** match start time (epoch milliseconds since 1970)
+— it works out *which* fixture you mean, then returns the full match object.
 
 **How it works:**
 1. Searches each team name → takes the top **2** Team results for both teams.
@@ -55,24 +55,18 @@ you mean, then returns the full match object.
 3. Inside each combo, picks the common fixture whose start time is closest to the
    supplied start time (exact match → same UTC day → nearest). `1x1` (top × top)
    has the highest priority; the first combo that yields a match wins.
-4. If **no `startTime` is given**, it picks the fixture **closest to the current
-   time** (nearest match in either direction — future or past).
 
 ```bash
-# By ISO start time
-GET /find-match?team1=India&team2=Australia&startTime=2027-10-07T08:00:00Z
-
-# By epoch seconds or milliseconds
-GET /find-match?team1=India&team2=Australia&startTime=1822896000
+# startTime = epoch milliseconds since 1970 (required)
+GET /find-match?team1=India&team2=Australia&startTime=1822896000000
 
 # POST body
-POST /find-match  { "team1": "India", "team2": "Australia", "startTime": "2027-10-07T08:00:00Z" }
+POST /find-match  { "team1": "India", "team2": "Australia", "startTime": 1822896000000 }
 ```
 
 **Optional query params:** `toleranceMs` (default `10800000` = 3h) or `toleranceMin`,
 `topN` (default `2`). Response includes `matched`, `strategy` (winning combo), `match`,
-`candidates`, and a full `attempts` trace. When `startTime` is omitted, `timeSource`
-is `now` and the time-closest fixture is returned.
+`candidates`, and a full `attempts` trace. Missing or invalid `startTime` returns `400`.
 
 ---
 

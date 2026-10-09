@@ -172,6 +172,24 @@ function firstResultString(...vals) {
 }
 
 /**
+ * Strict "match is over" detector. CREX's getSV3 `B` field carries the final
+ * result sentence ("X won by N runs 🏆", "Match drawn", "No result", ...) once
+ * a match concludes, but live in-play values are short state tokens or break
+ * labels ("0", "Over", "Tea Break"). NOTE: `sv.e === 0` is NOT a valid finished
+ * signal — live multi-day / chases carry e:0 while genuinely finished matches
+ * often carry e:undefined. Only the result sentence is reliable.
+ */
+function strictResultString(...vals) {
+  for (const v of vals) {
+    if (typeof v !== 'string') continue;
+    const s = v.trim();
+    if (!s) continue;
+    if (/(won|defeat|drawn|tied|abandoned|no result|match drawn)/i.test(s)) return s;
+  }
+  return null;
+}
+
+/**
  * Human-readable dismissal label. CREX's numeric `dismissal` code is the
  * wicket-type (1=bowled, 2=caught, 3=lbw, 4=run out, 5=stumped,
  * 6=hit wicket, 7=retired, ...); we also sniff the description text as a
@@ -227,9 +245,18 @@ function buildRich(state, code) {
     partnership: sv.partnerruns != null ? { runs: nnum(sv.partnerruns), balls: nnum(sv.partnerballs) } : null,
   };
 
-  // Batting team resolution
-  const newestBall = feed.find((b) => b.type === 'b' && b.pf);
-  const batFkey = sv.rtKey || newestBall?.bat_team_fkey || (map.t || []).find((t) => t.n === sv.rt)?.f_key || null;
+  // Batting team resolution. NOTE: sv.rt / sv.rtKey point to the BOWLING team
+  // in CREX's feed (verified across live tests), so they must NOT take priority.
+  // The live ball feed's bat_team_fkey, and recent overs' `rb[].bt`, reliably
+  // identify the batting side.
+  const feedBall = feed.find((b) => b.type === 'b' && b.bat_team_fkey);
+  const newestBall = feedBall || feed.find((b) => b.type === 'b' && b.pf);
+  let batFkey = feedBall?.bat_team_fkey || null;
+  if (!batFkey && Array.isArray(sv.rb)) {
+    const lastScoredOver = [...sv.rb].reverse().find((o) => o && o.bt);
+    batFkey = lastScoredOver?.bt || null;
+  }
+  if (!batFkey) batFkey = sv.rt2Key || sv.rtKey || null;
   const batTeam = (map.t || []).find((t) => t.f_key === batFkey) || null;
 
   if (batTeam || sv.rt) {
@@ -238,24 +265,24 @@ function buildRich(state, code) {
     if (batFkey) rich.battingTeamCode = batFkey;
   }
 
-  // Jersey resolution
-  const t1f = sv.t1f || km.team1Code || null;
-  const t2f = sv.t2f || km.team2Code || null;
-  const jersey1 = sv.t1Jerimage || (t1f ? jerseyBase(t1f) : null);
-  const jersey2 = sv.t2Jerimage || (t2f ? jerseyBase(t2f) : null);
-
-  let batJersey = null;
-  let bowlJersey = null;
-  if (batFkey && batFkey === t2f) {
-    batJersey = jersey2;
-    bowlJersey = jersey1;
-  } else if (batFkey && batFkey === t1f) {
-    batJersey = jersey1;
-    bowlJersey = jersey2;
-  } else {
-    batJersey = jersey1 || jersey2;
-    bowlJersey = jersey2 || jersey1;
-  }
+  // Jersey resolution. sv.t1Jerimage/sv.t2Jerimage align with the flag codes
+  // (sv.team1flag/sv.team2flag), NOT with sv.t1f/sv.t2f (which are unstable).
+  const jerseyFkFromFlag = (u) => {
+    if (typeof u !== 'string' || !u) return null;
+    const m = u.match(/\/([A-Za-z0-9_-]+)\.(?:png|jpe?g|svg|webp)(?:\?|#|$)/i);
+    return m ? m[1] : null;
+  };
+  const sideAFk = jerseyFkFromFlag(sv.team1flag);
+  const sideBFk = jerseyFkFromFlag(sv.team2flag);
+  const otherFkey = (batFkey && (map.t || []).find((t) => t.f_key !== batFkey)?.f_key) || null;
+  const jerseyFor = (fk) => {
+    if (!fk) return null;
+    if (fk === sideAFk && sv.t1Jerimage) return sv.t1Jerimage;
+    if (fk === sideBFk && sv.t2Jerimage) return sv.t2Jerimage;
+    return jerseyBase(fk);
+  };
+  const batJersey = jerseyFor(batFkey);
+  const bowlJersey = jerseyFor(otherFkey);
 
   // Current Batters
   const mkBatter = (fkey, name, short, runs, balls, sr, fours, sixes, img) => ({
@@ -622,6 +649,7 @@ export async function squadFor(code) {
 
 function formatScoreToken(str) {
   if (!str) return null;
+  if (String(str).includes(':')) return null; // recent-over token, not a total
   const m = str.match(/^(\d+)(?:\/(\d+))?(?:\(([0-9.]+))?/);
   if (!m) return str;
   const runs = m[1];
@@ -643,7 +671,11 @@ function computeMultiDayScore(inn1, inn2) {
 
 function inningsRuns(str) {
   if (!str) return null;
-  const m = String(str).match(/^(\d+)/);
+  const s = String(str);
+  // Reject CREX "recent over" tokens like "40:0.0.1.0.0.wd.0" — these contain
+  // a colon and are NOT innings totals (they previously broke Test equations).
+  if (s.includes(':')) return null;
+  const m = s.match(/^(\d+)/);
   return m ? parseInt(m[1], 10) : null;
 }
 
@@ -794,19 +826,24 @@ export async function getLiveMatches() {
     let team1Batting = false;
     let team2Batting = false;
 
+    // item.d is the current innings number (1, 2, ...). Innings 1/3 are batted
+    // by team1 (item.b), innings 2/4 by team2 (item.c). This is the reliable way
+    // to highlight the batting side for both limited-overs and multi-day games.
+    const inningNum = parseInt(item.d, 10) || 0;
+
     if (isMultiDay) {
       scoreRaw1 = computeMultiDayScore(item.j, item.l);
       scoreRaw2 = computeMultiDayScore(item.k, item.m);
+    }
 
-      if (item.m) {
-        team2Batting = true;
-      } else if (item.l) {
-        team1Batting = true;
-      } else if (item.k) {
-        team2Batting = true;
-      } else if (item.j) {
-        team1Batting = true;
-      }
+    if (inningNum >= 1) {
+      if (inningNum % 2 === 1) team1Batting = true;
+      else team2Batting = true;
+    } else if (isMultiDay) {
+      if (item.m) team2Batting = true;
+      else if (item.l) team1Batting = true;
+      else if (item.k) team2Batting = true;
+      else if (item.j) team1Batting = true;
     }
 
     const team1 = {
@@ -840,7 +877,7 @@ export async function getLiveMatches() {
       format: km.format || item.fo || null,
       status: 'live',
       statusText: formatLiveStatus(item, team1.shortName, team2.shortName),
-      battingTeam: km.battingTeam || (team1Batting ? t1Info.shortName : team2Batting ? t2Info.shortName : null),
+      battingTeam: team1Batting ? t1Info.shortName : team2Batting ? t2Info.shortName : null,
       slug: km.slug || null,
       teams: {
         team1,
@@ -1081,9 +1118,31 @@ export async function getMatchDetail(code) {
   const mapSeries = (prelive.s || [])[0] || {};
   const mapVenue = (prelive.v || [])[0] || {};
 
-  // Extract team codes: from sv.t1f / sv.a ("8B.8M"), keyMeta or match metadata
-  let t1Code = sv.t1f || km.team1Code;
-  let t2Code = sv.t2f || km.team2Code;
+  // Extract team codes. IMPORTANT: sv.t1f / sv.t2f are NOT stable (they flip
+  // between batting/bowling across matches), so we never rely on them first.
+  // Reliable signals:
+  //   * sv.team1flag / sv.team2flag  -> fkey of sv.team1 (current BATTING side)
+  //                                      and sv.team2 (current BOWLING side).
+  //   * sv.j / sv.k                  -> scores of the FIRST and SECOND innings
+  //                                      respectively (regardless of batting order).
+  // We re-derive the fixed "first-batting team" (team1) using innings parity so
+  // scores (sv.j -> team1, sv.k -> team2) always line up.
+  const fkeyFromFlag = (u) => {
+    if (typeof u !== 'string' || !u) return null;
+    const m = u.match(/\/([A-Za-z0-9_-]+)\.(?:png|jpe?g|svg|webp)(?:\?|#|$)/i);
+    return m ? m[1] : null;
+  };
+  const battFk = fkeyFromFlag(sv.team1flag);
+  const bowlFk = fkeyFromFlag(sv.team2flag);
+  const inningNum = parseInt(sv.inning, 10) || 0;
+  const firstBatFk = (battFk && bowlFk && inningNum >= 1)
+    ? (inningNum % 2 === 1 ? battFk : bowlFk)
+    : null;
+
+  let t1Code = firstBatFk || km.team1Code || sv.t2f || sv.t1f;
+  let t2Code = firstBatFk
+    ? (firstBatFk === battFk ? bowlFk : battFk)
+    : (km.team2Code || sv.t1f || sv.t2f);
   if (!t1Code || !t2Code) {
     if (typeof sv.a === 'string' && sv.a.includes('.')) {
       const parts = sv.a.split('.');
@@ -1164,7 +1223,12 @@ export async function getMatchDetail(code) {
   const startMs = startTime && !isNaN(Date.parse(startTime)) ? Date.parse(startTime) : null;
   const jRuns = parseInt((String(sv.j || '').match(/^(\d+)/) || [])[1] || '0', 10);
   const hasInnings = Boolean(sv.k || sv.l || sv.m || sv.B || sv.A || jRuns > 0);
-  const status = sv.e === 0 ? 'finished'
+
+  // Finished detection: ONLY trust the final result sentence. `sv.e === 0` is
+  // NOT reliable (live multi-day / chase matches carry e:0), so it is ignored.
+  const resultStr = strictResultString(sv.B, sv.result, sv.res);
+  const status = resultStr
+    ? 'finished'
     : (hasInnings ? 'live' : (startMs && startMs > Date.now() ? 'upcoming' : 'live'));
 
   const startDate = startMs ? new Date(startMs) : null;
@@ -1177,9 +1241,8 @@ export async function getMatchDetail(code) {
     team2.shortName
   );
 
-  const resultStr = firstResultString(sv.B, sv.result, sv.res, rich.equation);
   const resultText = status === 'finished'
-      ? (resultStr || 'Finished')
+      ? (resultStr || firstResultString(sv.B, sv.result, sv.res, rich.equation) || 'Finished')
       : status === 'upcoming'
         ? (dateStr ? `Starts ${dateStr}` : 'Upcoming')
         : (liveEquation || 'Live');

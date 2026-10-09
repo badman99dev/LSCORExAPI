@@ -30,16 +30,57 @@ function flattenMatches(tm) {
 const EPOCH_MS_MIN = 0;
 const EPOCH_MS_MAX = 4102444800000; // year 2100
 
+// "2026/10/09 13:30:14 +0000" (also accepts '-' separators, 'T'/' ' gap,
+// optional seconds, optional tz as +HHMM/+HH:MM/Z/UTC).
+const DATETIME_RE = /^(\d{4})[\/-](\d{1,2})[\/-](\d{1,2})[ T](\d{1,2}):(\d{2})(?::(\d{2}))?(?:\.\d+)?(?:\s*([+-]?\d{2}:?\d{2}|Z|UTC))?$/i;
+
+function parseDateTimeString(raw) {
+  const m = raw.match(DATETIME_RE);
+  if (!m) return null;
+  const year = +m[1], month = +m[2], day = +m[3];
+  const hour = +m[4], min = +m[5], sec = m[6] ? +m[6] : 0;
+  if (month < 1 || month > 12 || day < 1 || day > 31 || hour > 23 || min > 59 || sec > 59) {
+    return null;
+  }
+  let offsetMin = 0;
+  const tz = m[7];
+  if (tz && !/^(Z|UTC)$/i.test(tz)) {
+    const sign = tz[0] === '-' ? -1 : 1;
+    const digits = tz.slice(1).replace(':', '');
+    const hh = +digits.slice(0, 2);
+    const mm = digits.length > 2 ? +digits.slice(2, 4) : 0;
+    offsetMin = sign * (hh * 60 + mm);
+  }
+  const utcMs = Date.UTC(year, month - 1, day, hour, min, sec);
+  return utcMs - offsetMin * 60000;
+}
+
 /**
- * Parse a start time supplied as epoch milliseconds (since 1970-01-01 UTC).
- * Accepts a numeric value or a numeric string. Returns { ms, error }.
+ * Parse a start time supplied as:
+ *   - epoch milliseconds since 1970 (number or numeric string), e.g. 1822896000000
+ *   - a datetime string like "2026/10/09 13:30:14 +0000"
+ * Returns { ms, error }.
  */
 function parseStartTime(input) {
   if (input == null || input === '') return { ms: null, error: 'startTime is required' };
   const raw = typeof input === 'number' ? input : String(input).trim();
-  if (raw === '' || !/^-?\d+(\.\d+)?$/.test(String(raw))) {
-    return { ms: null, error: 'startTime must be epoch milliseconds (e.g. 1822896000000)' };
+  if (raw === '') return { ms: null, error: 'startTime is required' };
+
+  // Datetime string form (contains ':' or a space between date and time)
+  if (!/^-?\d+(\.\d+)?$/.test(String(raw))) {
+    const dt = parseDateTimeString(String(raw));
+    if (dt == null) {
+      return {
+        ms: null,
+        error: 'startTime must be epoch milliseconds (e.g. 1822896000000) or datetime "YYYY/MM/DD HH:mm:ss +0000"',
+      };
+    }
+    if (dt < EPOCH_MS_MIN || dt > EPOCH_MS_MAX) {
+      return { ms: null, error: 'startTime out of range' };
+    }
+    return { ms: Math.round(dt), error: null };
   }
+
   const n = Number(raw);
   if (!Number.isFinite(n) || n < EPOCH_MS_MIN || n > EPOCH_MS_MAX) {
     return { ms: null, error: 'startTime out of range; must be epoch milliseconds since 1970' };

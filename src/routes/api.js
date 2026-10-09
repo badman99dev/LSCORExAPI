@@ -340,7 +340,7 @@ const handleFindMatch = async (req, res) => {
       return res.status(400).json({
         success: false,
         error: `Missing required parameter(s): ${missing.join(", ")}`,
-        hint: "startTime must be epoch milliseconds since 1970, e.g. 1822896000000",
+        hint: "startTime must be epoch milliseconds since 1970 (e.g. 1822896000000) or datetime \"YYYY/MM/DD HH:mm:ss +0000\"",
         usage: "/find-match?team1=India&team2=Australia&startTime=1822896000000",
       });
     }
@@ -350,7 +350,7 @@ const handleFindMatch = async (req, res) => {
       return res.status(400).json({
         success: false,
         error: result.reason,
-        hint: "startTime must be epoch milliseconds since 1970, e.g. 1822896000000",
+        hint: "startTime must be epoch milliseconds since 1970 (e.g. 1822896000000) or datetime \"YYYY/MM/DD HH:mm:ss +0000\"",
         usage: "/find-match?team1=India&team2=Australia&startTime=1822896000000",
       });
     }

@@ -45,8 +45,8 @@ Deployable on **Render** (via `render.yaml`), VPS, Docker, or any Node.js enviro
 
 ## 🔎 Advanced Match Finder
 
-Give it two team names and a **required** match start time (epoch milliseconds since 1970)
-— it works out *which* fixture you mean, then returns the full match object.
+Give it two team names and a **required** match start time — it works out *which* fixture
+you mean, then returns the full match object.
 
 **How it works:**
 1. Searches each team name → takes the top **2** Team results for both teams.
@@ -57,11 +57,14 @@ Give it two team names and a **required** match start time (epoch milliseconds s
    has the highest priority; the first combo that yields a match wins.
 
 ```bash
-# startTime = epoch milliseconds since 1970 (required)
+# startTime as epoch milliseconds since 1970 (required)
 GET /find-match?team1=India&team2=Australia&startTime=1822896000000
 
+# startTime as a datetime string (YYYY/MM/DD HH:mm:ss +ZZZZ)
+GET /find-match?team1=India&team2=Australia&startTime=2026/10/09%2013:30:14%20%2B0000
+
 # POST body
-POST /find-match  { "team1": "India", "team2": "Australia", "startTime": 1822896000000 }
+POST /find-match  { "team1": "India", "team2": "Australia", "startTime": "2026/10/09 13:30:14 +0000" }
 ```
 
 **Optional query params:** `toleranceMs` (default `10800000` = 3h) or `toleranceMin`,

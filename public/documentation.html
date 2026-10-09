@@ -1,0 +1,823 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>📖 LSCORExAPI — Full API Documentation</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500;700&family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+  <style>
+    :root {
+      --bg: #090d16;
+      --panel: #0f172a;
+      --card-bg: #111827;
+      --card-border: #1f2937;
+      --accent: #10b981;
+      --accent-dim: #10b98122;
+      --live-red: #ef4444;
+      --upcoming-blue: #38bdf8;
+      --finished-gray: #6b7280;
+      --purple: #a78bfa;
+      --amber: #fbbf24;
+      --text: #f3f4f6;
+      --text-muted: #9ca3af;
+      --mono: "JetBrains Mono", monospace;
+      --sans: "Plus Jakarta Sans", sans-serif;
+    }
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    html { scroll-behavior: smooth; }
+    body {
+      background: var(--bg);
+      color: var(--text);
+      font-family: var(--sans);
+      min-height: 100vh;
+      line-height: 1.6;
+      font-size: 15px;
+    }
+    a { color: var(--accent); text-decoration: none; }
+    a:hover { text-decoration: underline; }
+
+    header {
+      background: rgba(17, 24, 39, 0.9);
+      backdrop-filter: blur(12px);
+      border-bottom: 1px solid var(--card-border);
+      position: sticky; top: 0; z-index: 50;
+      padding: 14px 24px;
+      display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 10px;
+    }
+    .brand { display: flex; align-items: center; gap: 12px; font-weight: 800; font-size: 1.15rem; letter-spacing: -0.02em; }
+    .brand-badge { background: var(--accent-dim); color: var(--accent); border: 1px solid #10b98144; font-size: 0.7rem; padding: 2px 8px; border-radius: 9999px; font-weight: 600; }
+    .header-links { display: flex; gap: 10px; align-items: center; flex-wrap: wrap; }
+    .btn { border: 1px solid var(--card-border); background: var(--card-bg); color: var(--text); padding: 7px 14px; border-radius: 9px; font-family: var(--sans); font-weight: 600; font-size: 0.8rem; cursor: pointer; transition: 0.15s; text-decoration: none; display: inline-flex; align-items: center; gap: 6px; }
+    .btn:hover { border-color: var(--accent); color: var(--accent); text-decoration: none; }
+    .btn-accent { background: var(--accent-dim); border-color: #10b98155; color: var(--accent); }
+
+    .layout { display: grid; grid-template-columns: 270px 1fr; gap: 0; max-width: 1400px; margin: 0 auto; }
+    nav.sidebar {
+      position: sticky; top: 61px; align-self: start;
+      height: calc(100vh - 61px); overflow-y: auto;
+      padding: 22px 16px 60px;
+      border-right: 1px solid var(--card-border);
+      font-size: 0.86rem;
+    }
+    nav.sidebar h4 { color: var(--text-muted); text-transform: uppercase; font-size: 0.68rem; letter-spacing: 0.08em; margin: 18px 0 8px; }
+    nav.sidebar h4:first-child { margin-top: 0; }
+    nav.sidebar a { display: block; color: var(--text-muted); padding: 5px 10px; border-radius: 7px; margin-bottom: 2px; border-left: 2px solid transparent; }
+    nav.sidebar a:hover { color: var(--text); background: var(--card-bg); text-decoration: none; }
+    nav.sidebar a.active { color: var(--accent); background: var(--accent-dim); border-left-color: var(--accent); }
+
+    main { padding: 32px 40px 120px; min-width: 0; }
+
+    .hero { margin-bottom: 34px; }
+    .hero h1 { font-size: 2rem; font-weight: 800; letter-spacing: -0.03em; margin-bottom: 10px; }
+    .hero p { color: var(--text-muted); max-width: 780px; }
+    .hero .base-url { margin-top: 16px; font-family: var(--mono); font-size: 0.85rem; background: var(--panel); border: 1px solid var(--card-border); border-radius: 10px; padding: 12px 16px; display: inline-block; color: var(--accent); }
+    .hero .base-url span { color: var(--text-muted); }
+
+    .quickgrid { display: grid; grid-template-columns: repeat(auto-fit, minmax(210px, 1fr)); gap: 12px; margin: 20px 0 40px; }
+    .quickcard { background: var(--card-bg); border: 1px solid var(--card-border); border-radius: 12px; padding: 16px; }
+    .quickcard code { font-family: var(--mono); font-size: 0.8rem; color: var(--accent); }
+    .quickcard p { color: var(--text-muted); font-size: 0.8rem; margin-top: 6px; }
+
+    section.group { margin-bottom: 54px; scroll-margin-top: 78px; }
+    section.group > h2 { font-size: 1.4rem; font-weight: 800; letter-spacing: -0.02em; padding-bottom: 12px; margin-bottom: 6px; border-bottom: 2px solid var(--card-border); display: flex; align-items: center; gap: 10px; }
+    section.group > h2 .ico { font-size: 1.2rem; }
+    section.group > .group-desc { color: var(--text-muted); font-size: 0.88rem; margin-bottom: 22px; }
+
+    .endpoint { background: var(--card-bg); border: 1px solid var(--card-border); border-radius: 14px; padding: 22px 24px; margin-bottom: 20px; scroll-margin-top: 78px; }
+    .endpoint .head { display: flex; align-items: center; gap: 12px; flex-wrap: wrap; margin-bottom: 8px; }
+    .method { font-family: var(--mono); font-size: 0.72rem; font-weight: 700; padding: 4px 10px; border-radius: 7px; letter-spacing: 0.04em; }
+    .m-get { background: #10b98122; color: var(--accent); border: 1px solid #10b98144; }
+    .m-post { background: #38bdf822; color: var(--upcoming-blue); border: 1px solid #38bdf844; }
+    .m-sse { background: #a78bfa22; color: var(--purple); border: 1px solid #a78bfa44; }
+    .endpoint .path { font-family: var(--mono); font-size: 0.95rem; font-weight: 600; word-break: break-all; }
+    .endpoint .path .pv { color: var(--amber); }
+    .endpoint .desc { color: var(--text-muted); font-size: 0.88rem; margin-bottom: 16px; }
+    .try { margin-left: auto; font-size: 0.75rem; padding: 5px 11px; }
+
+    .block-title { font-size: 0.7rem; text-transform: uppercase; letter-spacing: 0.08em; color: var(--text-muted); font-weight: 700; margin: 16px 0 8px; }
+    table.params { width: 100%; border-collapse: collapse; font-size: 0.83rem; }
+    table.params th, table.params td { text-align: left; padding: 8px 10px; border-bottom: 1px solid var(--card-border); vertical-align: top; }
+    table.params th { color: var(--text-muted); font-weight: 600; font-size: 0.72rem; text-transform: uppercase; letter-spacing: 0.05em; }
+    table.params code { font-family: var(--mono); font-size: 0.8rem; color: var(--amber); background: #fbbf2411; padding: 1px 6px; border-radius: 5px; }
+    table.params .req { color: var(--live-red); font-size: 0.7rem; font-weight: 700; }
+    table.params .opt { color: var(--finished-gray); font-size: 0.7rem; font-weight: 700; }
+
+    pre { background: #060a12; border: 1px solid var(--card-border); border-radius: 10px; padding: 14px 16px; overflow-x: auto; font-family: var(--mono); font-size: 0.79rem; line-height: 1.65; margin-top: 8px; color: #cbd5e1; }
+    pre .k { color: var(--accent); }
+    pre .s { color: var(--amber); }
+    pre .c { color: #64748b; }
+    .code-head { display: flex; justify-content: space-between; align-items: center; margin-top: 16px; }
+    .copy-btn { background: var(--panel); border: 1px solid var(--card-border); color: var(--text-muted); font-size: 0.7rem; padding: 3px 9px; border-radius: 6px; cursor: pointer; font-family: var(--sans); }
+    .copy-btn:hover { color: var(--accent); border-color: var(--accent); }
+
+    .note { background: #fbbf2410; border: 1px solid #fbbf2433; border-radius: 9px; padding: 11px 14px; font-size: 0.82rem; color: #fcd34d; margin-top: 12px; }
+    .note.green { background: var(--accent-dim); border-color: #10b98144; color: var(--accent); }
+    .pill { display: inline-block; font-size: 0.68rem; font-weight: 700; padding: 2px 8px; border-radius: 9999px; margin-left: 6px; }
+    .pill-live { background: #ef444422; color: var(--live-red); border: 1px solid #ef444444; }
+    .pill-up { background: #38bdf822; color: var(--upcoming-blue); border: 1px solid #38bdf844; }
+
+    footer { border-top: 1px solid var(--card-border); padding: 30px 40px; color: var(--text-muted); font-size: 0.8rem; text-align: center; }
+
+    @media (max-width: 900px) {
+      .layout { grid-template-columns: 1fr; }
+      nav.sidebar { display: none; }
+      main { padding: 24px 18px 90px; }
+      .try { margin-left: 0; }
+    }
+  </style>
+</head>
+<body>
+  <header>
+    <div class="brand">
+      <span>⚡ LSCORExAPI</span>
+      <span class="brand-badge">API v1.0</span>
+      <span class="brand-badge">Cricket · CREX</span>
+    </div>
+    <div class="header-links">
+      <a class="btn" href="/docs">🏠 Console</a>
+      <a class="btn btn-accent" href="/documentation/api">📖 Full Docs</a>
+    </div>
+  </header>
+
+  <div class="layout">
+    <nav class="sidebar">
+      <h4>Getting Started</h4>
+      <a href="#overview">Overview</a>
+      <a href="#auth">Base URL &amp; Conventions</a>
+      <a href="#errors">Errors &amp; Status Codes</a>
+
+      <h4>System</h4>
+      <a href="#health">Health Check</a>
+      <a href="#stats">Broadcaster Stats</a>
+
+      <h4>Matches</h4>
+      <a href="#list-matches">List Matches</a>
+      <a href="#live">Live Matches</a>
+      <a href="#upcoming">Upcoming Matches</a>
+      <a href="#finished">Finished Matches</a>
+      <a href="#match-detail">Match Detail</a>
+      <a href="#squad">Squad / Playing XI</a>
+      <a href="#playing-xi">Playing XI</a>
+      <a href="#commentary">Commentary</a>
+      <a href="#scorecard">Scorecard</a>
+      <a href="#stream">SSE Live Stream</a>
+
+      <h4>Search</h4>
+      <a href="#search">Search</a>
+
+      <h4>Series</h4>
+      <a href="#points-table">Points Table</a>
+      <a href="#series-squads">Series Squads</a>
+      <a href="#series-matches">Series Matches</a>
+      <a href="#series-hub">Series Hub</a>
+
+      <h4>Team</h4>
+      <a href="#team-overview">Team Overview</a>
+      <a href="#team-matches">Team Matches</a>
+
+      <h4>Advanced</h4>
+      <a href="#find-match">Find Match &#9733;</a>
+    </nav>
+
+    <main>
+      <div class="hero">
+        <h1>📖 Full API Documentation</h1>
+        <p>Complete reference for the <strong>LSCORExAPI</strong> — a high-performance REST + SSE live cricket score API backed by CREX feeds. Every endpoint, parameter, and response shape explained with copy-paste examples.</p>
+        <div class="base-url"><span>Base URL:</span> https://lscorexapi.onrender.com <span>(or http://localhost:3000)</span></div>
+      </div>
+
+      <div class="quickgrid">
+        <div class="quickcard"><code>GET /matches/live</code><p>All currently live matches</p></div>
+        <div class="quickcard"><code>GET /matches/:id</code><p>Deep match state + rich data</p></div>
+        <div class="quickcard"><code>SSE /matches/:id/stream</code><p>Real-time ball-by-ball events</p></div>
+        <div class="quickcard"><code>GET /find-match</code><p>Two teams + time → exact fixture</p></div>
+      </div>
+
+      <!-- ============ OVERVIEW ============ -->
+      <section class="group" id="overview">
+        <h2><span class="ico">🌐</span> Overview</h2>
+        <p class="group-desc">
+          LSCORExAPI exposes live cricket data as clean JSON. It supports two access models:
+        </p>
+        <div class="note green">
+          <strong>REST endpoints</strong> return a one-shot JSON snapshot. <strong>SSE endpoints</strong> keep an open stream and push diffs on every ball, so you never have to poll.
+        </div>
+        <div class="block-title" style="margin-top:20px;">Common list response shape</div>
+        <pre>{
+  <span class="k">"success"</span>: <span class="s">true</span>,
+  <span class="k">"sport"</span>: <span class="s">"cricket"</span>,
+  <span class="k">"source"</span>: <span class="s">"crex"</span>,
+  <span class="k">"tab"</span>: <span class="s">"live"</span>,
+  <span class="k">"count"</span>: <span class="s">5</span>,
+  <span class="k">"matches"</span>: [ <span class="c">/* array of match summary objects */</span> ]
+}
+</pre>
+        <p class="group-desc" style="margin-top:14px;">Every single-object endpoint wraps its payload as <code>{ success: true, match: {...} }</code>, <code>{ success: true, team: {...} }</code> (team), or <code>{ success: true, ...payload }</code> (series).</p>
+      </section>
+
+      <!-- ============ AUTH / CONVENTIONS ============ -->
+      <section class="group" id="auth">
+        <h2><span class="ico">🔑</span> Base URL &amp; Conventions</h2>
+        <table class="params">
+          <tr><th>Item</th><th>Value</th></tr>
+          <tr><td>Base URL</td><td><code>https://lscorexapi.onrender.com</code></td></tr>
+          <tr><td>Authentication</td><td>None — public API, no API key required</td></tr>
+          <tr><td>Content-Type</td><td><code>application/json</code> (POST bodies)</td></tr>
+          <tr><td>CORS</td><td>Enabled for all origins (<code>*</code>)</td></tr>
+          <tr><td>Encoding</td><td>UTF-8</td></tr>
+          <tr><td>Timestamps</td><td>Unix epoch ms in <code>timestamp</code>, ISO-8601 in <code>startTime</code> / <code>timestamp</code> fields</td></tr>
+          <tr><td>Response wrap</td><td><code>{ success, ...data }</code></td></tr>
+        </table>
+        <div class="note">
+          All endpoints accept an optional trailing HTML mode: hitting them from a browser (with <code>Accept: text/html</code>) renders a human page; append <code>?json=true</code> or <code>?format=json</code> to force raw JSON. API clients get JSON automatically.
+        </div>
+      </section>
+
+      <!-- ============ ERRORS ============ -->
+      <section class="group" id="errors">
+        <h2><span class="ico">⚠️</span> Errors &amp; Status Codes</h2>
+        <table class="params">
+          <tr><th>Status</th><th>Meaning</th><th>Example body</th></tr>
+          <tr><td><code>200</code></td><td>Success</td><td><code>{ "success": true, ... }</code></td></tr>
+          <tr><td><code>400</code></td><td>Missing/invalid params</td><td><code>{ "success": false, "error": "Both 'team1' and 'team2' are required" }</code></td></tr>
+          <tr><td><code>404</code></td><td>Resource not found</td><td><code>{ "success": false, "error": "Match not found or unavailable" }</code></td></tr>
+          <tr><td><code>500</code></td><td>Upstream/parse failure</td><td><code>{ "success": false, "error": "..." }</code></td></tr>
+        </table>
+      </section>
+
+      <!-- ============ HEALTH ============ -->
+      <section class="group" id="health">
+        <h2><span class="ico">💚</span> System</h2>
+        <div class="endpoint" id="health-card">
+          <div class="head"><span class="method m-get">GET</span><span class="path">/health</span><a class="btn try" href="/health" target="_blank">Try ↗</a></div>
+          <div class="desc">Liveness probe. Confirms the server is up and reports uptime.</div>
+          <div class="block-title">Response</div>
+          <pre>{
+  <span class="k">"status"</span>: <span class="s">"ok"</span>,
+  <span class="k">"service"</span>: <span class="s">"LSCORExAPI"</span>,
+  <span class="k">"uptimeSeconds"</span>: <span class="s">12345</span>,
+  <span class="k">"timestamp"</span>: <span class="s">"2026-10-09T19:00:00.000Z"</span>
+}
+</pre>
+        </div>
+
+        <div class="endpoint" id="stats">
+          <div class="head"><span class="method m-get">GET</span><span class="path">/stats</span><a class="btn try" href="/stats" target="_blank">Try ↗</a></div>
+          <div class="desc">Real-time broadcaster metrics: how many SSE clients are connected, which matches are being watched, and the internal loop intervals.</div>
+          <div class="block-title">Response</div>
+          <pre>{
+  <span class="k">"connectedClients"</span>: <span class="s">12</span>,
+  <span class="k">"activeWatchers"</span>: <span class="s">3</span>,
+  <span class="k">"watchedMatches"</span>: [<span class="s">"11AM"</span>, <span class="s">"13LQ"</span>],
+  <span class="k">"subscriptions"</span>: { <span class="s">"11AM"</span>: <span class="s">8</span>, <span class="s">"13LQ"</span>: <span class="s">4</span> },
+  <span class="k">"pollIntervalMs"</span>: <span class="s">6000</span>,
+  <span class="k">"pingIntervalMs"</span>: <span class="s">15000</span>,
+  <span class="k">"deliveryTickMs"</span>: <span class="s">500</span>
+}
+</pre>
+        </div>
+      </section>
+
+      <!-- ============ LIST MATCHES ============ -->
+      <section class="group" id="list-matches">
+        <h2><span class="ico">🏏</span> Matches</h2>
+        <div class="endpoint">
+          <div class="head"><span class="method m-get">GET</span><span class="path">/matches</span><a class="btn try" href="/matches?json=true" target="_blank">Try ↗</a></div>
+          <div class="desc">List all matches. Aliases: <code>/events</code>, <code>/cricket/events</code>.</div>
+          <table class="params">
+            <tr><th>Param</th><th>Type</th><th>Description</th></tr>
+            <tr><td><code>tab</code></td><td class="opt">optional</td><td><code>all</code> (default), <code>live</code>, <code>upcoming</code>, or <code>finished</code>.</td></tr>
+          </table>
+          <div class="block-title">Example</div>
+          <pre><span class="c"># All matches</span>
+GET /matches
+
+<span class="c"># Only finished matches</span>
+GET /matches?tab=finished
+</pre>
+          <div class="block-title">Response — match summary object</div>
+          <pre>{
+  <span class="k">"id"</span>: <span class="s">"11AM"</span>,
+  <span class="k">"tab"</span>: <span class="s">"live"</span>,
+  <span class="k">"series"</span>: <span class="s">"West Indies tour of India 2026"</span>,
+  <span class="k">"matchDesc"</span>: <span class="s">"2nd-T20"</span>,
+  <span class="k">"venue"</span>: <span class="s">"JSCA International Cricket Stadium Complex, Ranchi"</span>,
+  <span class="k">"format"</span>: <span class="s">"T20I"</span>,
+  <span class="k">"status"</span>: <span class="s">"live"</span>,
+  <span class="k">"statusText"</span>: <span class="s">"WI needs 86 runs to win"</span>,
+  <span class="k">"battingTeam"</span>: <span class="s">"WI"</span>,
+  <span class="k">"slug"</span>: <span class="s">"ind-vs-wi-2nd-t20-...-11AM"</span>,
+  <span class="k">"teams"</span>: {
+    <span class="k">"team1"</span>: {
+      <span class="k">"code"</span>: <span class="s">"O"</span>, <span class="k">"name"</span>: <span class="s">"IND"</span>, <span class="k">"shortName"</span>: <span class="s">"IND"</span>,
+      <span class="k">"logo"</span>: <span class="s">"https://.../O.png"</span>,
+      <span class="k">"jersey"</span>: <span class="s">"https://.../O.png"</span>,
+      <span class="k">"score"</span>: { <span class="k">"runs"</span>: <span class="s">249</span>, <span class="k">"wickets"</span>: <span class="s">5</span>, <span class="k">"overs"</span>: <span class="s">20.0</span>, <span class="k">"balls"</span>: <span class="s">120</span> },
+      <span class="k">"scoreRaw"</span>: <span class="s">"249/5(20.0"</span>,
+      <span class="k">"isBatting"</span>: <span class="s">false</span>
+    },
+    <span class="k">"team2"</span>: { <span class="c">/* same shape, isBatting: true when currently batting */</span> }
+  }
+}
+</pre>
+        </div>
+
+        <div class="endpoint" id="live">
+          <div class="head"><span class="method m-get">GET</span><span class="path">/matches/live</span><a class="btn try" href="/matches/live?json=true" target="_blank">Try ↗</a></div>
+          <div class="desc">Only currently live matches <span class="pill pill-live">LIVE</span>. Aliases: <code>/events/live</code>, <code>/cricket/events/live</code>.</div>
+        </div>
+
+        <div class="endpoint" id="upcoming">
+          <div class="head"><span class="method m-get">GET</span><span class="path">/matches/upcoming</span><a class="btn try" href="/matches/upcoming?json=true" target="_blank">Try ↗</a></div>
+          <div class="desc">Scheduled matches not yet started <span class="pill pill-up">UPCOMING</span>. Aliases: <code>/events/upcoming</code>, <code>/cricket/events/upcoming</code>.</div>
+        </div>
+
+        <div class="endpoint" id="finished">
+          <div class="head"><span class="method m-get">GET</span><span class="path">/matches/finished</span><a class="btn try" href="/matches/finished?json=true" target="_blank">Try ↗</a></div>
+          <div class="desc">Completed matches with results. Aliases: <code>/events/finished</code>, <code>/cricket/events/finished</code>.</div>
+        </div>
+      </section>
+
+      <!-- ============ MATCH DETAIL ============ -->
+      <section class="group" id="match-detail">
+        <h2><span class="ico">🎯</span> Match Detail</h2>
+        <div class="endpoint">
+          <div class="head"><span class="method m-get">GET</span><span class="path">/matches/<span class="pv">:id</span></span><a class="btn try" href="/matches/11AM?json=true" target="_blank">Try ↗</a></div>
+          <div class="desc">Deep state of a single match: teams, scores, and the <code>rich</code> live block (striker, non-striker, bowler, partnership, CRR/RRR, target). Alias: <code>/events/:id</code>.</div>
+          <table class="params">
+            <tr><th>Param</th><th>Type</th><th>Description</th></tr>
+            <tr><td><code>:id</code></td><td class="req">required</td><td>Match id from any list endpoint (e.g. <code>11AM</code>).</td></tr>
+          </table>
+          <div class="block-title">Response (trimmed)</div>
+          <pre>{
+  <span class="k">"success"</span>: <span class="s">true</span>,
+  <span class="k">"match"</span>: {
+    <span class="k">"id"</span>: <span class="s">"11AM"</span>,
+    <span class="k">"series"</span>: <span class="s">"West Indies tour of India 2026"</span>,
+    <span class="k">"matchDesc"</span>: <span class="s">"2nd-T20"</span>,
+    <span class="k">"format"</span>: <span class="s">"T20I"</span>,
+    <span class="k">"status"</span>: <span class="s">"live"</span>,
+    <span class="k">"statusText"</span>: <span class="s">"WI trail by 79 runs"</span>,
+    <span class="k">"startTime"</span>: <span class="s">"2026-10-09T19:00:00.000Z"</span>,
+    <span class="k">"timestamp"</span>: <span class="s">1791572400000</span>,
+    <span class="k">"result"</span>: <span class="s">null</span>,
+    <span class="k">"manOfMatch"</span>: <span class="s">null</span>,
+    <span class="k">"teams"</span>: { <span class="k">"team1"</span>: {...}, <span class="k">"team2"</span>: {...} },
+    <span class="k">"rich"</span>: {
+      <span class="k">"inning"</span>: <span class="s">2</span>,
+      <span class="k">"target"</span>: <span class="s">250</span>,
+      <span class="k">"crr"</span>: <span class="s">13.08</span>,
+      <span class="k">"rrr"</span>: <span class="s">11.43</span>,
+      <span class="k">"comment"</span>: <span class="s">"WI need 80 runs in 42 balls"</span>,
+      <span class="k">"battingTeamCode"</span>: <span class="s">"V"</span>,
+      <span class="k">"partnership"</span>: { <span class="k">"runs"</span>: <span class="s">112</span>, <span class="k">"balls"</span>: <span class="s">47</span> },
+      <span class="k">"striker"</span>: {
+        <span class="k">"name"</span>: <span class="s">"Sherfane Rutherford"</span>,
+        <span class="k">"runs"</span>: <span class="s">78</span>, <span class="k">"balls"</span>: <span class="s">32</span>, <span class="k">"strikeRate"</span>: <span class="s">243.75</span>,
+        <span class="k">"fours"</span>: <span class="s">6</span>, <span class="k">"sixes"</span>: <span class="s">7</span>, <span class="k">"strike"</span>: <span class="s">true</span>,
+        <span class="k">"head"</span>: <span class="s">"https://.../EH.png"</span>
+      },
+      <span class="k">"nonStriker"</span>: { ... },
+      <span class="k">"bowler"</span>: {
+        <span class="k">"name"</span>: <span class="s">"Naman Dhir"</span>, <span class="k">"overs"</span>: <span class="s">"2.0"</span>,
+        <span class="k">"maidens"</span>: <span class="s">0</span>, <span class="k">"runs"</span>: <span class="s">25</span>, <span class="k">"wickets"</span>: <span class="s">null</span>, <span class="k">"economy"</span>: <span class="s">12.5</span>
+      }
+    }
+  },
+  <span class="k">"event"</span>: { <span class="c">/* identical to match */</span> }
+}
+</pre>
+          <div class="note">The <code>rich</code> block is only present for matches that have live/rich data. For upcoming matches it may contain fewer fields. <code>result</code> and <code>manOfMatch</code> fill in once finished.</div>
+        </div>
+      </section>
+
+      <!-- ============ SQUAD ============ -->
+      <section class="group" id="squad">
+        <h2><span class="ico">👥</span> Squad &amp; Playing XI</h2>
+        <div class="endpoint">
+          <div class="head"><span class="method m-get">GET</span><span class="path">/matches/<span class="pv">:id</span>/squad</span><a class="btn try" href="/matches/11AM/squad?json=true" target="_blank">Try ↗</a></div>
+          <div class="desc">Both teams' squads and Playing XI with player photos, roles, and jerseys. Alias: <code>/events/:id/squad</code>.</div>
+          <div class="block-title">Response (trimmed)</div>
+          <pre>{
+  <span class="k">"success"</span>: <span class="s">true</span>,
+  <span class="k">"squad"</span>: {
+    <span class="k">"id"</span>: <span class="s">"11AM"</span>,
+    <span class="k">"kind"</span>: <span class="s">"XI"</span>,
+    <span class="k">"format"</span>: <span class="s">"T20I"</span>,
+    <span class="k">"venue"</span>: <span class="s">"..."</span>,
+    <span class="k">"teams"</span>: {
+      <span class="k">"team1"</span>: {
+        <span class="k">"code"</span>: <span class="s">"O"</span>, <span class="k">"name"</span>: <span class="s">"India"</span>, <span class="k">"shortName"</span>: <span class="s">"IND"</span>,
+        <span class="k">"flag"</span>: <span class="s">"https://.../O.png"</span>,
+        <span class="k">"jersey"</span>: <span class="s">"https://.../O.png"</span>,
+        <span class="k">"playersCount"</span>: <span class="s">11</span>,
+        <span class="k">"players"</span>: [
+          {
+            <span class="k">"fkey"</span>: <span class="s">"1DH"</span>, <span class="k">"name"</span>: <span class="s">"Abhishek Sharma"</span>,
+            <span class="k">"role"</span>: <span class="s">"All-Rounder"</span>, <span class="k">"roleId"</span>: <span class="s">3</span>,
+            <span class="k">"matches"</span>: <span class="s">63</span>, <span class="k">"captain"</span>: <span class="s">false</span>,
+            <span class="k">"keeper"</span>: <span class="s">false</span>, <span class="k">"foreign"</span>: <span class="s">false</span>,
+            <span class="k">"injured"</span>: <span class="s">false</span>,
+            <span class="k">"head"</span>: <span class="s">"https://.../1DH.png"</span>
+          }
+        ]
+      },
+      <span class="k">"team2"</span>: { <span class="c">/* same shape */</span> }
+    },
+    <span class="k">"meta"</span>: { <span class="k">"isXIAnnounced"</span>: <span class="s">true</span> }
+  }
+}
+</pre>
+          <div class="block-title">Roles</div>
+          <table class="params">
+            <tr><th>roleId</th><th>role</th></tr>
+            <tr><td>1</td><td>Batter</td></tr>
+            <tr><td>2</td><td>Bowler</td></tr>
+            <tr><td>3</td><td>All-Rounder</td></tr>
+            <tr><td>4</td><td>Wicket-Keeper (WK)</td></tr>
+          </table>
+        </div>
+
+        <div class="endpoint" id="playing-xi">
+          <div class="head"><span class="method m-get">GET</span><span class="path">/matches/<span class="pv">:id</span>/playing-xi</span><a class="btn try" href="/matches/11AM/playing-xi?json=true" target="_blank">Try ↗</a></div>
+          <div class="desc">Playing XI alias that surfaces the announcement flag directly.</div>
+          <div class="block-title">Response</div>
+          <pre>{
+  <span class="k">"success"</span>: <span class="s">true</span>,
+  <span class="k">"isXIAnnounced"</span>: <span class="s">true</span>,
+  <span class="k">"squad"</span>: { <span class="c">/* same as /squad */</span> }
+}
+</pre>
+        </div>
+      </section>
+
+      <!-- ============ COMMENTARY ============ -->
+      <section class="group" id="commentary">
+        <h2><span class="ico">📣</span> Commentary</h2>
+        <div class="endpoint">
+          <div class="head"><span class="method m-get">GET</span><span class="path">/matches/<span class="pv">:id</span>/commentary</span><a class="btn try" href="/matches/11AM/commentary?json=true" target="_blank">Try ↗</a></div>
+          <div class="desc">Ball-by-ball commentary data: recent balls, last overs, wickets, and timeline. Alias: <code>/events/:id/commentary</code>.</div>
+          <div class="block-title">Response</div>
+          <pre>{
+  <span class="k">"success"</span>: <span class="s">true</span>,
+  <span class="k">"matchId"</span>: <span class="s">"11AM"</span>,
+  <span class="k">"recentBalls"</span>: [
+    {
+      <span class="k">"over"</span>: <span class="s">"13.1"</span>, <span class="k">"ball"</span>: <span class="s">"1"</span>,
+      <span class="k">"text"</span>: <span class="s">"Arshdeep Singh to Shai Hope"</span>,
+      <span class="k">"score"</span>: <span class="s">"171/3"</span>,
+      <span class="k">"shot"</span>: <span class="s">null</span>, <span class="k">"wagon"</span>: <span class="s">null</span>,
+      <span class="k">"commentary"</span>: <span class="s">null</span>,
+      <span class="k">"isBoundary"</span>: <span class="s">false</span>, <span class="k">"isWicket"</span>: <span class="s">false</span>, <span class="k">"isExtra"</span>: <span class="s">false</span>
+    }
+  ],
+  <span class="k">"lastOvers"</span>: [ ... ],
+  <span class="k">"wickets"</span>: [ ... ],
+  <span class="k">"timeline"</span>: [ ... ]
+}
+</pre>
+        </div>
+      </section>
+
+      <!-- ============ SCORECARD ============ -->
+      <section class="group" id="scorecard">
+        <h2><span class="ico">🧾</span> Scorecard</h2>
+        <div class="endpoint">
+          <div class="head"><span class="method m-get">GET</span><span class="path">/matches/<span class="pv">:id</span>/scorecard</span><a class="btn try" href="/matches/11AM/scorecard?json=true" target="_blank">Try ↗</a></div>
+          <div class="desc">Structured scorecard combining teams, status, and the current batting snapshot. Alias: <code>/events/:id/scorecard</code>.</div>
+          <div class="block-title">Response</div>
+          <pre>{
+  <span class="k">"success"</span>: <span class="s">true</span>,
+  <span class="k">"matchId"</span>: <span class="s">"11AM"</span>,
+  <span class="k">"teams"</span>: { <span class="k">"team1"</span>: {...}, <span class="k">"team2"</span>: {...} },
+  <span class="k">"status"</span>: <span class="s">"live"</span>,
+  <span class="k">"statusText"</span>: <span class="s">"WI trail by 79 runs"</span>,
+  <span class="k">"battingTeam"</span>: <span class="s">"West Indies"</span>,
+  <span class="k">"striker"</span>: {...}, <span class="k">"nonStriker"</span>: {...}, <span class="k">"bowler"</span>: {...},
+  <span class="k">"partnership"</span>: { <span class="k">"runs"</span>: <span class="s">112</span>, <span class="k">"balls"</span>: <span class="s">47</span> },
+  <span class="k">"target"</span>: <span class="s">250</span>, <span class="k">"crr"</span>: <span class="s">13.08</span>, <span class="k">"rrr"</span>: <span class="s">11.43</span>
+}
+</pre>
+        </div>
+      </section>
+
+      <!-- ============ STREAM ============ -->
+      <section class="group" id="stream">
+        <h2><span class="ico">📡</span> SSE Live Stream</h2>
+        <div class="endpoint">
+          <div class="head"><span class="method m-sse">SSE</span><span class="path">/matches/<span class="pv">:id</span>/stream</span><a class="btn try" href="/matches/11AM/stream" target="_blank">Try ↗</a></div>
+          <div class="desc">Canonical infinite Server-Sent Events stream. Sends an initial <code>snapshot</code>, then streams <code>update</code> diffs on every change, plus heartbeats. Non-live matches (upcoming/finished) get one <code>snapshot</code> then a closing <code>end</code>. Alias: <code>/events/:id/stream</code>.</div>
+          <table class="params">
+            <tr><th>Param</th><th>Type</th><th>Description</th></tr>
+            <tr><td><code>delay</code></td><td class="opt">optional</td><td>Seconds to lag behind live (DVR mode). Range <code>0</code>&ndash;<code>60</code>. Default <code>0</code>.</td></tr>
+          </table>
+          <div class="block-title">Event types</div>
+          <table class="params">
+            <tr><th>event</th><th>Payload</th></tr>
+            <tr><td><code>snapshot</code></td><td><code>{ match, cached, delayMs }</code></td></tr>
+            <tr><td><code>update</code></td><td><code>{ id, timestamp, changes:[{path,from,to}], match }</code></td></tr>
+            <tr><td><code>end</code></td><td><code>{ matchId, reason }</code> — stream will close</td></tr>
+          </table>
+          <div class="code-head"><span class="block-title" style="margin:0;">JavaScript example</span></div>
+          <pre><span class="k">const</span> es = <span class="k">new</span> EventSource(
+  <span class="s">"https://lscorexapi.onrender.com/matches/11AM/stream"</span>
+);
+
+es.addEventListener(<span class="s">"snapshot"</span>, (e) =&gt; {
+  <span class="k">const</span> { match } = JSON.parse(e.data);
+  console.log(<span class="s">"initial:"</span>, match.statusText);
+});
+
+es.addEventListener(<span class="s">"update"</span>, (e) =&gt; {
+  <span class="k">const</span> { changes } = JSON.parse(e.data);
+  changes.forEach((c) =&gt; console.log(c.path, c.from, <span class="s">"-&gt;"</span>, c.to));
+});
+
+es.addEventListener(<span class="s">"end"</span>, (e) =&gt; {
+  console.log(<span class="s">"match ended"</span>, JSON.parse(e.data));
+  es.close();
+});
+</pre>
+          <div class="note green">DVR tip: append <code>?delay=30</code> to watch the match 30 seconds behind live — perfect for syncing with a video feed. Delayed clients still receive the terminal <code>end</code> event.</div>
+        </div>
+      </section>
+
+      <!-- ============ SEARCH ============ -->
+      <section class="group" id="search">
+        <h2><span class="ico">🔍</span> Search</h2>
+        <div class="endpoint">
+          <div class="head"><span class="method m-get">GET</span><span class="method m-post">POST</span><span class="path">/search</span><a class="btn try" href="/search?q=india&json=true" target="_blank">Try ↗</a></div>
+          <div class="desc">Search teams, series, and players by name. Aliases: <code>/api/search</code>. Raw Redisearch form: <code>POST /api/search/redisearch</code> (returns the bare array).</div>
+          <table class="params">
+            <tr><th>Param</th><th>Type</th><th>Description</th></tr>
+            <tr><td><code>q</code></td><td class="req">required</td><td>Search term. Accepts <code>?q=</code>, <code>?exp=</code>, or POST body <code>{ "q" | "exp" | "query" }</code>.</td></tr>
+          </table>
+          <div class="block-title">Response</div>
+          <pre>{
+  <span class="k">"success"</span>: <span class="s">true</span>,
+  <span class="k">"query"</span>: <span class="s">"india"</span>,
+  <span class="k">"count"</span>: <span class="s">20</span>,
+  <span class="k">"results"</span>: [
+    {
+      <span class="k">"id"</span>: <span class="s">"O"</span>,
+      <span class="k">"name"</span>: <span class="s">"India"</span>,
+      <span class="k">"slug"</span>: <span class="s">"india-O"</span>,
+      <span class="k">"href"</span>: <span class="s">"/team/india-O"</span>,
+      <span class="k">"typeCode"</span>: <span class="s">3</span>,
+      <span class="k">"category"</span>: <span class="s">"Team"</span>,
+      <span class="k">"image"</span>: <span class="s">"https://.../O.png"</span>
+    }
+  ]
+}
+</pre>
+          <div class="block-title">Categories</div>
+          <table class="params">
+            <tr><th>category</th><th>meaning</th><th>usable as</th></tr>
+            <tr><td>Team</td><td>A cricket team</td><td><code>/team/:slug</code></td></tr>
+            <tr><td>Series</td><td>A tournament / tour</td><td><code>/series/:slug/points-table</code></td></tr>
+            <tr><td>Player</td><td>A player</td><td>photos/ids</td></tr>
+            <tr><td>Other</td><td>Misc entity</td><td>&mdash;</td></tr>
+          </table>
+          <div class="block-title">POST example</div>
+          <pre>POST /search
+Content-Type: application/json
+
+{ <span class="k">"q"</span>: <span class="s">"australia"</span> }
+</pre>
+        </div>
+      </section>
+
+      <!-- ============ SERIES ============ -->
+      <section class="group" id="points-table">
+        <h2><span class="ico">🏆</span> Series</h2>
+        <div class="endpoint">
+          <div class="head"><span class="method m-get">GET</span><span class="path">/series/<span class="pv">:id</span>/points-table</span><a class="btn try" href="/series/world-championship-of-legends-2026-2MS/points-table?json=true" target="_blank">Try ↗</a></div>
+          <div class="desc">Points table / standings for a series. Alias paths: <code>/series/:id/point-table</code>, <code>/api/series/:id/points-table</code>.</div>
+          <div class="block-title">Response</div>
+          <pre>{
+  <span class="k">"success"</span>: <span class="s">true</span>,
+  <span class="k">"seriesId"</span>: <span class="s">"2MS"</span>,
+  <span class="k">"slug"</span>: <span class="s">"world-championship-of-legends-2026-2MS"</span>,
+  <span class="k">"totalGroups"</span>: <span class="s">1</span>,
+  <span class="k">"groups"</span>: [
+    {
+      <span class="k">"groupName"</span>: <span class="s">"Points Table"</span>,
+      <span class="k">"standings"</span>: [
+        {
+          <span class="k">"rank"</span>: <span class="s">1</span>,
+          <span class="k">"team"</span>: { <span class="k">"code"</span>: <span class="s">"O"</span>, <span class="k">"name"</span>: <span class="s">"India"</span>, <span class="k">"shortName"</span>: <span class="s">"IND"</span>, <span class="k">"logo"</span>: <span class="s">"..."</span> },
+          <span class="k">"played"</span>: <span class="s">5</span>, <span class="k">"won"</span>: <span class="s">4</span>, <span class="k">"lost"</span>: <span class="s">1</span>,
+          <span class="k">"noResult"</span>: <span class="s">0</span>, <span class="k">"points"</span>: <span class="s">8</span>, <span class="k">"netRunRate"</span>: <span class="s">"1.234"</span>,
+          <span class="k">"recentForm"</span>: [<span class="s">"W"</span>, <span class="s">"W"</span>, <span class="s">"L"</span>], <span class="k">"qualified"</span>: <span class="s">false</span>, <span class="k">"eliminated"</span>: <span class="s">false</span>
+        }
+      ]
+    }
+  ]
+}
+</pre>
+        </div>
+
+        <div class="endpoint" id="series-squads">
+          <div class="head"><span class="method m-get">GET</span><span class="path">/series/<span class="pv">:id</span>/team-squad</span><a class="btn try" href="/series/world-championship-of-legends-2026-2MS/team-squad?json=true" target="_blank">Try ↗</a></div>
+          <div class="desc">All squads in a series with player photos &amp; roles. Aliases: <code>/series/:id/squad</code>, <code>/series/:id/squads</code>.</div>
+          <div class="block-title">Response (trimmed)</div>
+          <pre>{
+  <span class="k">"success"</span>: <span class="s">true</span>,
+  <span class="k">"seriesId"</span>: <span class="s">"2MS"</span>,
+  <span class="k">"teamsCount"</span>: <span class="s">6</span>,
+  <span class="k">"teams"</span>: [
+    {
+      <span class="k">"code"</span>: <span class="s">"O"</span>, <span class="k">"name"</span>: <span class="s">"India"</span>, <span class="k">"shortName"</span>: <span class="s">"IND"</span>,
+      <span class="k">"playersCount"</span>: <span class="s">15</span>,
+      <span class="k">"players"</span>: [
+        { <span class="k">"fkey"</span>: <span class="s">"..."</span>, <span class="k">"name"</span>: <span class="s">"..."</span>, <span class="k">"role"</span>: <span class="s">"Batter"</span>, <span class="k">"captain"</span>: <span class="s">false</span>, <span class="k">"head"</span>: <span class="s">"..."</span> }
+      ]
+    }
+  ]
+}
+</pre>
+        </div>
+
+        <div class="endpoint" id="series-matches">
+          <div class="head"><span class="method m-get">GET</span><span class="path">/series/<span class="pv">:id</span>/matches</span><a class="btn try" href="/series/world-championship-of-legends-2026-2MS/matches?json=true" target="_blank">Try ↗</a></div>
+          <div class="desc">All fixtures in a series with scores, results &amp; venues. Alias: <code>/api/series/:id/matches</code>.</div>
+          <div class="block-title">Response (trimmed)</div>
+          <pre>{
+  <span class="k">"success"</span>: <span class="s">true</span>,
+  <span class="k">"seriesId"</span>: <span class="s">"2MS"</span>,
+  <span class="k">"count"</span>: <span class="s">12</span>,
+  <span class="k">"matches"</span>: [
+    {
+      <span class="k">"id"</span>: <span class="s">"..."</span>, <span class="k">"matchDesc"</span>: <span class="s">"Match 3"</span>, <span class="k">"format"</span>: <span class="s">"T20"</span>,
+      <span class="k">"date"</span>: <span class="s">"..."</span>, <span class="k">"timestamp"</span>: <span class="s">0</span>, <span class="k">"venue"</span>: <span class="s">"..."</span>,
+      <span class="k">"status"</span>: <span class="s">"upcoming"</span>, <span class="k">"statusText"</span>: <span class="s">"..."</span>, <span class="k">"winner"</span>: <span class="s">null</span>,
+      <span class="k">"teams"</span>: { <span class="k">"team1"</span>: { <span class="k">"code"</span>:<span class="s">""</span>, <span class="k">"name"</span>:<span class="s">""</span>, <span class="k">"shortName"</span>:<span class="s">""</span>, <span class="k">"score"</span>:<span class="s">null</span> }, <span class="k">"team2"</span>: {...} },
+      <span class="k">"streaming"</span>: <span class="s">null</span>
+    }
+  ]
+}
+</pre>
+        </div>
+
+        <div class="endpoint" id="series-hub">
+          <div class="head"><span class="method m-get">GET</span><span class="path">/series/<span class="pv">:id</span></span><a class="btn try" href="/series/world-championship-of-legends-2026-2MS?json=true" target="_blank">Try ↗</a></div>
+          <div class="desc">Series hub root — returns the points-table payload. Alias: <code>/api/series/:id</code>.</div>
+        </div>
+      </section>
+
+      <!-- ============ TEAM ============ -->
+      <section class="group" id="team-overview">
+        <h2><span class="ico">🛡️</span> Team</h2>
+        <div class="endpoint">
+          <div class="head"><span class="method m-get">GET</span><span class="path">/team/<span class="pv">:id</span></span><a class="btn try" href="/team/india-O?json=true" target="_blank">Try ↗</a></div>
+          <div class="desc">Team overview: bio, world ranking, trophies, recent form, and upcoming series. Alias: <code>/api/team/:id</code>.</div>
+          <table class="params">
+            <tr><th>Param</th><th>Type</th><th>Description</th></tr>
+            <tr><td><code>:id</code></td><td class="req">required</td><td>Team slug (e.g. <code>india-O</code>) or short code (<code>O</code>).</td></tr>
+          </table>
+          <div class="block-title">Response (trimmed)</div>
+          <pre>{
+  <span class="k">"success"</span>: <span class="s">true</span>,
+  <span class="k">"team"</span>: {
+    <span class="k">"id"</span>: <span class="s">"O"</span>, <span class="k">"slug"</span>: <span class="s">"india-O"</span>,
+    <span class="k">"name"</span>: <span class="s">"India"</span>, <span class="k">"shortName"</span>: <span class="s">"IND"</span>,
+    <span class="k">"logo"</span>: <span class="s">"..."</span>, <span class="k">"jersey"</span>: <span class="s">"..."</span>,
+    <span class="k">"colors"</span>: { <span class="k">"card"</span>: <span class="s">"..."</span>, <span class="k">"primary"</span>: <span class="s">"..."</span>, <span class="k">"dark"</span>: <span class="s">"..."</span> },
+    <span class="k">"activeFrom"</span>: <span class="s">"1932"</span>,
+    <span class="k">"ranking"</span>: [ ... ],
+    <span class="k">"recentForm"</span>: [
+      { <span class="k">"id"</span>:<span class="s">"11AL"</span>, <span class="k">"format"</span>:<span class="s">"T20I"</span>, <span class="k">"date"</span>:<span class="s">"10/6/2026"</span>,
+        <span class="k">"result"</span>:<span class="s">"IND Won by 8"</span>, <span class="k">"opponentCode"</span>:<span class="s">"..."</span> }
+    ],
+    <span class="k">"trophies"</span>: [ ... ],
+    <span class="k">"bio"</span>: <span class="s">"..."</span>,
+    <span class="k">"upcomingSeriesCount"</span>: <span class="s">0</span>,
+    <span class="k">"upcomingSeries"</span>: [ ... ]
+  }
+}
+</pre>
+        </div>
+
+        <div class="endpoint" id="team-matches">
+          <div class="head"><span class="method m-get">GET</span><span class="path">/team/<span class="pv">:id</span>/matches</span><a class="btn try" href="/team/india-O/matches?json=true" target="_blank">Try ↗</a></div>
+          <div class="desc">All international &amp; domestic fixtures for a team, grouped by tournament. Alias: <code>/api/team/:id/matches</code>.</div>
+          <div class="block-title">Response (trimmed)</div>
+          <pre>{
+  <span class="k">"success"</span>: <span class="s">true</span>,
+  <span class="k">"teamId"</span>: <span class="s">"india-O"</span>,
+  <span class="k">"tournamentsCount"</span>: <span class="s">19</span>,
+  <span class="k">"tournaments"</span>: [
+    {
+      <span class="k">"seriesKey"</span>: <span class="s">"2JR"</span>,
+      <span class="k">"seriesName"</span>: <span class="s">"World Cup 2027"</span>,
+      <span class="k">"matchesCount"</span>: <span class="s">5</span>,
+      <span class="k">"matches"</span>: [
+        {
+          <span class="k">"id"</span>: <span class="s">"14P3"</span>, <span class="k">"matchDesc"</span>: <span class="s">"Match 1"</span>, <span class="k">"format"</span>: <span class="s">"ODI"</span>,
+          <span class="k">"date"</span>: <span class="s">"10/7/2027"</span>, <span class="k">"timestamp"</span>: <span class="s">1822896000000</span>,
+          <span class="k">"status"</span>: <span class="s">"upcoming"</span>, <span class="k">"statusText"</span>: <span class="s">"Upcoming"</span>,
+          <span class="k">"teams"</span>: { <span class="k">"team1"</span>: {...}, <span class="k">"team2"</span>: {...} }
+        }
+      ]
+    }
+  ]
+}
+</pre>
+        </div>
+      </section>
+
+      <!-- ============ FIND MATCH ============ -->
+      <section class="group" id="find-match">
+        <h2><span class="ico">⭐</span> Advanced Match Finder</h2>
+        <p class="group-desc">Give two team names and (optionally) a match start time. The API works out <em>which</em> fixture you mean and returns the full match object.</p>
+        <div class="endpoint">
+          <div class="head"><span class="method m-get">GET</span><span class="method m-post">POST</span><span class="path">/find-match</span><a class="btn try" href="/find-match?team1=India&team2=Australia&startTime=2027-10-07T08:00:00Z" target="_blank">Try ↗</a></div>
+          <div class="desc">Advanced finder. Aliases: <code>/match-finder</code>, <code>/api/find-match</code>.</div>
+          <table class="params">
+            <tr><th>Param</th><th>Type</th><th>Description</th></tr>
+            <tr><td><code>team1</code></td><td class="req">required</td><td>First team search term. Aliases: <code>teamA</code>, <code>t1</code>, <code>home</code>, <code>team</code>.</td></tr>
+            <tr><td><code>team2</code></td><td class="req">required</td><td>Second team search term. Aliases: <code>teamB</code>, <code>t2</code>, <code>away</code>, <code>opponent</code>.</td></tr>
+            <tr><td><code>startTime</code></td><td class="opt">optional</td><td>Match start time — ISO string or epoch seconds/ms. Aliases: <code>start_time</code>, <code>time</code>, <code>start</code>, <code>date</code>.</td></tr>
+            <tr><td><code>toleranceMs</code></td><td class="opt">optional</td><td>Max |delta| for time matching. Default <code>10800000</code> (3h). Alt: <code>toleranceMin</code>.</td></tr>
+            <tr><td><code>topN</code></td><td class="opt">optional</td><td>How many team search hits to consider per team. Default <code>2</code>.</td></tr>
+          </table>
+          <div class="block-title">Algorithm</div>
+          <ol style="color:var(--text-muted); font-size:0.86rem; padding-left:22px; margin-top:8px;">
+            <li>Searches both team names → takes the top <code>topN</code> Team results for each.</li>
+            <li>For combos <code>1x1 → 1x2 → 2x1 → 2x2</code>, fetches both teams' <em>Team Matches &amp; Tours</em> and intersects by match id.</li>
+            <li>Picks the common fixture closest to the start time (exact → same UTC day → nearest).</li>
+            <li>First combo (in priority order) that yields a match wins. If no <code>startTime</code>, the fixture closest to <strong>now</strong> (either direction) is returned.</li>
+          </ol>
+          <div class="code-head"><span class="block-title" style="margin:0;">Examples</span></div>
+          <pre><span class="c"># ISO start time</span>
+GET /find-match?team1=India&amp;team2=Australia&amp;startTime=2027-10-07T08:00:00Z
+
+<span class="c"># Epoch seconds</span>
+GET /find-match?team1=India&amp;team2=Australia&amp;startTime=1822896000
+
+<span class="c"># No time -> closest to now</span>
+GET /find-match?team1=India&amp;team2=Australia
+
+<span class="c"># POST body</span>
+POST /find-match
+{ <span class="k">"team1"</span>: <span class="s">"India"</span>, <span class="k">"team2"</span>: <span class="s">"Australia"</span>, <span class="k">"startTime"</span>: <span class="s">"2027-10-07T08:00:00Z"</span> }
+</pre>
+          <div class="block-title">Response</div>
+          <pre>{
+  <span class="k">"success"</span>: <span class="s">true</span>,
+  <span class="k">"matched"</span>: <span class="s">true</span>,
+  <span class="k">"strategy"</span>: <span class="s">"1x1"</span>,
+  <span class="k">"teams"</span>: {
+    <span class="k">"team1"</span>: { <span class="k">"name"</span>: <span class="s">"India"</span>, <span class="k">"slug"</span>: <span class="s">"india-O"</span>, <span class="k">"code"</span>: <span class="s">"O"</span> },
+    <span class="k">"team2"</span>: { <span class="k">"name"</span>: <span class="s">"Australia"</span>, <span class="k">"slug"</span>: <span class="s">"australia-Q"</span>, <span class="k">"code"</span>: <span class="s">"Q"</span> }
+  },
+  <span class="k">"startTime"</span>: <span class="s">1791572400000</span>,
+  <span class="k">"timeSource"</span>: <span class="s">"startTime"</span>,
+  <span class="k">"timeDeltaMs"</span>: <span class="s">0</span>,
+  <span class="k">"match"</span>: {
+    <span class="k">"id"</span>: <span class="s">"14P3"</span>, <span class="k">"date"</span>: <span class="s">"10/7/2027"</span>,
+    <span class="k">"timestamp"</span>: <span class="s">1822896000000</span>,
+    <span class="k">"seriesName"</span>: <span class="s">"World Cup 2027"</span>,
+    <span class="k">"teams"</span>: { <span class="k">"team1"</span>: {...}, <span class="k">"team2"</span>: {...} }
+  },
+  <span class="k">"candidates"</span>: [ <span class="c">/* common fixtures, closest first */</span> ],
+  <span class="k">"attempts"</span>: [ <span class="c">/* full combo trace with commonCount + bestTimeMatch */</span> ]
+}
+</pre>
+          <div class="note">When <code>matched</code> is <code>false</code>, the response carries a <code>reason</code> plus the <code>attempts</code> trace so you can debug exactly which combo failed and why.</div>
+        </div>
+      </section>
+
+      <footer>
+        ⚡ LSCORExAPI — built on CREX feeds. Docs generated for API v1.0 · <a href="/docs">Back to console</a>
+      </footer>
+    </main>
+  </div>
+
+  <script>
+    const links = [...document.querySelectorAll('nav.sidebar a')];
+    const sections = links.map(a => document.querySelector(a.getAttribute('href'))).filter(Boolean);
+    const onScroll = () => {
+      let cur = sections[0];
+      for (const s of sections) {
+        if (s.getBoundingClientRect().top <= 130) cur = s;
+      }
+      links.forEach(a => a.classList.toggle('active', a.getAttribute('href') === '#' + cur.id));
+    };
+    document.addEventListener('scroll', onScroll, { passive: true });
+    onScroll();
+
+    document.querySelectorAll('.copy-btn').forEach(btn => {
+      btn.addEventListener('click', () => {
+        const pre = btn.closest('.endpoint').querySelector('pre');
+        if (!pre) return;
+        navigator.clipboard.writeText(pre.innerText);
+        btn.textContent = 'Copied!';
+        setTimeout(() => (btn.textContent = 'Copy'), 1200);
+      });
+    });
+  </script>
+</body>
+</html>

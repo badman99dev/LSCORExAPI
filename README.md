@@ -39,6 +39,7 @@ Deployable on **Render** (via `render.yaml`), VPS, Docker, or any Node.js enviro
 | `GET` | `/stats` | Broadcaster metrics: active SSE clients, watched matches, worker pool. |
 | `GET` | `/health` | Server uptime and health status. |
 | `GET` | `/docs` | Interactive Swagger-style documentation & real-time SSE stream tester. |
+| `GET` | `/documentation/api` | Full static API reference: every endpoint, param, and response shape. |
 
 ---
 

@@ -34,6 +34,11 @@ app.get(['/', '/docs'], (req, res) => {
   res.sendFile(path.join(publicDir, 'index.html'));
 });
 
+// Full API Documentation (pure reference for every endpoint)
+app.get(['/documentation/api', '/documentation', '/api-docs'], (req, res) => {
+  res.sendFile(path.join(publicDir, 'documentation.html'));
+});
+
 // Dedicated Match Scorecard & SSE Live Streaming Next Page
 app.get(['/match', '/match/:id', '/score/:id'], (req, res) => {
   res.sendFile(path.join(publicDir, 'match.html'));

@@ -123,25 +123,32 @@ export async function findMatch({ team1, team2, startTime, toleranceMs = 3 * 60 
       continue;
     }
 
+    const refNow = Date.now();
+    const ref = start != null ? start : refNow;
+    const timeSource = start != null ? 'startTime' : 'now';
+
     const withinTolerance = common.filter(
-      (m) => m.timestamp && start != null && Math.abs(m.timestamp - start) <= toleranceMs
+      (m) => m.timestamp && Math.abs(m.timestamp - ref) <= toleranceMs
     );
-    const sameDay = common.filter((m) => m.timestamp && start != null && sameUtcDay(m.timestamp, start));
+    const sameDay = common.filter((m) => m.timestamp && sameUtcDay(m.timestamp, ref));
+    const byCloseness = (a, b) =>
+      Math.abs((a.timestamp || 0) - ref) - Math.abs((b.timestamp || 0) - ref);
 
     let chosen = null;
     let timeDeltaMs = null;
 
     if (withinTolerance.length) {
-      withinTolerance.sort((a, b) => Math.abs(a.timestamp - start) - Math.abs(b.timestamp - start));
+      withinTolerance.sort(byCloseness);
       chosen = withinTolerance[0];
-      timeDeltaMs = chosen.timestamp - start;
+      timeDeltaMs = chosen.timestamp - ref;
     } else if (sameDay.length) {
-      sameDay.sort((a, b) => Math.abs(a.timestamp - start) - Math.abs(b.timestamp - start));
+      sameDay.sort(byCloseness);
       chosen = sameDay[0];
-      timeDeltaMs = chosen.timestamp - start;
+      timeDeltaMs = chosen.timestamp - ref;
     } else if (start == null) {
-      chosen = [...common].sort((a, b) => (b.timestamp || 0) - (a.timestamp || 0))[0] || common[0];
-      timeDeltaMs = null;
+      // No startTime given: pick the fixture closest to NOW (either side).
+      chosen = [...common].sort(byCloseness)[0] || common[0];
+      timeDeltaMs = chosen.timestamp ? chosen.timestamp - refNow : null;
     }
 
     attempt.bestTimeMatch = chosen
@@ -150,17 +157,15 @@ export async function findMatch({ team1, team2, startTime, toleranceMs = 3 * 60 
     attempts.push(attempt);
 
     if (chosen) {
-      const candidates = common
-        .slice()
-        .sort((a, b) => (start != null
-          ? Math.abs((a.timestamp || 0) - start) - Math.abs((b.timestamp || 0) - start)
-          : (b.timestamp || 0) - (a.timestamp || 0)));
+      const candidates = common.slice().sort(byCloseness);
 
       return {
         matched: true,
         strategy: attempt.combo,
         teams: { team1: teamSummary(t1), team2: teamSummary(t2) },
         startTime: start,
+        timeSource,
+        referenceTime: ref,
         timeDeltaMs,
         match: chosen,
         candidates,
@@ -176,6 +181,8 @@ export async function findMatch({ team1, team2, startTime, toleranceMs = 3 * 60 
       ? 'no common match found between the searched teams'
       : (start != null ? 'no common match within time tolerance' : 'no common match found'),
     startTime: start,
+    timeSource: start != null ? 'startTime' : 'now',
+    referenceTime: start != null ? start : Date.now(),
     teams1: cand1.map(teamSummary),
     teams2: cand2.map(teamSummary),
     attempts,

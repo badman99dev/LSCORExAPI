@@ -54,6 +54,8 @@ you mean, then returns the full match object.
 3. Inside each combo, picks the common fixture whose start time is closest to the
    supplied start time (exact match → same UTC day → nearest). `1x1` (top × top)
    has the highest priority; the first combo that yields a match wins.
+4. If **no `startTime` is given**, it picks the fixture **closest to the current
+   time** (nearest match in either direction — future or past).
 
 ```bash
 # By ISO start time
@@ -68,7 +70,8 @@ POST /find-match  { "team1": "India", "team2": "Australia", "startTime": "2027-1
 
 **Optional query params:** `toleranceMs` (default `10800000` = 3h) or `toleranceMin`,
 `topN` (default `2`). Response includes `matched`, `strategy` (winning combo), `match`,
-`candidates`, and a full `attempts` trace.
+`candidates`, and a full `attempts` trace. When `startTime` is omitted, `timeSource`
+is `now` and the time-closest fixture is returned.
 
 ---
 

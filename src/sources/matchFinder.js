@@ -147,6 +147,7 @@ export async function findMatch({ team1, team2, startTime, toleranceMs = 3 * 60 
   };
 
   const attempts = [];
+  let fallback = null; // closest common match seen across combos (respecting combo priority)
 
   for (const [i, j] of comboOrder) {
     const t1 = cand1[i];
@@ -174,59 +175,97 @@ export async function findMatch({ team1, team2, startTime, toleranceMs = 3 * 60 
     }
 
     const ref = start;
-
     const withinTolerance = common.filter(
       (m) => m.timestamp && Math.abs(m.timestamp - ref) <= toleranceMs
     );
     const sameDay = common.filter((m) => m.timestamp && sameUtcDay(m.timestamp, ref));
     const byCloseness = (a, b) =>
       Math.abs((a.timestamp || 0) - ref) - Math.abs((b.timestamp || 0) - ref);
+    const closest = common.filter((m) => m.timestamp).sort(byCloseness)[0] || common[0];
 
     let chosen = null;
     let timeDeltaMs = null;
+    let timeMatchType = null;
 
     if (withinTolerance.length) {
       withinTolerance.sort(byCloseness);
       chosen = withinTolerance[0];
       timeDeltaMs = chosen.timestamp - ref;
+      timeMatchType = timeDeltaMs === 0 ? 'exact' : 'within-tolerance';
     } else if (sameDay.length) {
       sameDay.sort(byCloseness);
       chosen = sameDay[0];
       timeDeltaMs = chosen.timestamp - ref;
+      timeMatchType = 'same-day';
     }
 
     attempt.bestTimeMatch = chosen
-      ? { id: chosen.id, timestamp: chosen.timestamp || null, deltaMs: timeDeltaMs }
-      : null;
+      ? { id: chosen.id, timestamp: chosen.timestamp || null, deltaMs: timeDeltaMs, type: timeMatchType }
+      : { id: closest.id, timestamp: closest.timestamp || null, deltaMs: closest.timestamp ? closest.timestamp - ref : null, type: 'closest' };
     attempts.push(attempt);
 
+    // Phase 1: a real time match -> win immediately in combo priority order.
     if (chosen) {
       const candidates = common.slice().sort(byCloseness);
+      return buildResult({ matched: true, t1, t2, attempts, chosen, candidates, timeDeltaMs, timeMatchType, start, strategy: attempt.combo });
+    }
 
-      return {
-        matched: true,
-        strategy: attempt.combo,
-        teams: { team1: teamSummary(t1), team2: teamSummary(t2) },
-        startTime: start,
-        referenceTime: start,
-        timeDeltaMs,
-        match: chosen,
-        candidates,
-        attempts,
-      };
+    // Phase 2: remember closest as fallback, but keep scanning higher-priority first.
+    if (!fallback) {
+      fallback = { t1, t2, chosen: closest, candidates: common.slice().sort(byCloseness), strategy: attempt.combo };
     }
   }
 
-  const hadCommon = attempts.some((a) => a.commonCount > 0);
+  // No combo had a match within tolerance -> return the closest (best-effort).
+  if (fallback) {
+    const delta = fallback.chosen.timestamp ? fallback.chosen.timestamp - start : null;
+    return buildResult({
+      matched: true,
+      t1: fallback.t1,
+      t2: fallback.t2,
+      attempts,
+      chosen: fallback.chosen,
+      candidates: fallback.candidates,
+      timeDeltaMs: delta,
+      timeMatchType: 'closest',
+      start,
+      strategy: fallback.strategy,
+    });
+  }
+
   return {
     matched: false,
-    reason: !hadCommon
-      ? 'no common match found between the searched teams'
-      : 'no common match within time tolerance',
+    reason: 'no common match found between the searched teams',
     startTime: start,
     referenceTime: start,
+    timeMatch: false,
+    timeMatchType: 'none',
     teams1: cand1.map(teamSummary),
     teams2: cand2.map(teamSummary),
+    attempts,
+  };
+}
+
+function buildResult({ t1, t2, attempts, chosen, candidates, timeDeltaMs, timeMatchType, start, strategy }) {
+  const timeMatch = timeMatchType === 'exact' || timeMatchType === 'within-tolerance' || timeMatchType === 'same-day';
+  const messages = {
+    exact: 'Exact start-time match found within the selected teams.',
+    'within-tolerance': `Closest match within the time tolerance (${Math.round(Math.abs(timeDeltaMs) / 60000)} min off).`,
+    'same-day': `No match within tolerance, but a match on the same UTC day was found (${(Math.abs(timeDeltaMs) / 3600000).toFixed(1)} h off).`,
+    closest: `No match within tolerance — returning the CLOSEST available fixture (${(Math.abs(timeDeltaMs || 0) / 3600000).toFixed(1)} h off).`,
+  };
+  return {
+    matched: true,
+    timeMatch,
+    timeMatchType,
+    note: messages[timeMatchType] || null,
+    strategy,
+    teams: { team1: teamSummary(t1), team2: teamSummary(t2) },
+    startTime: start,
+    referenceTime: start,
+    timeDeltaMs,
+    match: chosen,
+    candidates,
     attempts,
   };
 }

@@ -53,8 +53,11 @@ you mean, then returns the full match object.
 2. For every ordered combo — `1x1 → 1x2 → 2x1 → 2x2` — fetches both teams'
    *Team Matches & Tours* and intersects them by match id.
 3. Inside each combo, picks the common fixture whose start time is closest to the
-   supplied start time (exact match → same UTC day → nearest). `1x1` (top × top)
-   has the highest priority; the first combo that yields a match wins.
+   supplied start time (exact → within tolerance → same UTC day). `1x1` (top × top)
+   has the highest priority; the first combo that yields a time match wins.
+4. If **no** fixture falls inside the time tolerance, the **closest available fixture**
+   is returned as a best-effort fallback, flagged with `timeMatch: false` and
+   `timeMatchType: "closest"`.
 
 ```bash
 # startTime as epoch milliseconds since 1970 (required)
@@ -68,8 +71,10 @@ POST /find-match  { "team1": "India", "team2": "Australia", "startTime": "2026/1
 ```
 
 **Optional query params:** `toleranceMs` (default `10800000` = 3h) or `toleranceMin`,
-`topN` (default `2`). Response includes `matched`, `strategy` (winning combo), `match`,
-`candidates`, and a full `attempts` trace. Missing or invalid `startTime` returns `400`.
+`topN` (default `2`). Response includes `matched`, `timeMatch` / `timeMatchType`
+(`exact` · `within-tolerance` · `same-day` · `closest` · `none`), `strategy` (winning
+combo), `match`, `candidates`, and a full `attempts` trace. Missing or invalid
+`startTime` returns `400`.
 
 ---
 

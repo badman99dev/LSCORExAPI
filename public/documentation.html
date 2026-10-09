@@ -748,9 +748,18 @@ Content-Type: application/json
           <ol style="color:var(--text-muted); font-size:0.86rem; padding-left:22px; margin-top:8px;">
             <li>Searches both team names → takes the top <code>topN</code> Team results for each.</li>
             <li>For combos <code>1x1 → 1x2 → 2x1 → 2x2</code>, fetches both teams' <em>Team Matches &amp; Tours</em> and intersects by match id.</li>
-            <li>Picks the common fixture closest to <code>startTime</code> (exact → same UTC day → nearest).</li>
-            <li>First combo (in priority order) that yields a match wins.</li>
+            <li>Picks the common fixture closest to <code>startTime</code> (exact → within tolerance → same UTC day).</li>
+            <li>First combo (in priority order) that yields a time match wins. If <strong>no</strong> combo has a match within tolerance, the <strong>closest available fixture</strong> is returned instead (best-effort) with <code>timeMatch: false</code>.</li>
           </ol>
+          <div class="block-title">Time-match classification</div>
+          <table class="params">
+            <tr><th>timeMatchType</th><th>timeMatch</th><th>Meaning</th></tr>
+            <tr><td><code>exact</code></td><td>true</td><td>Fixture start equals <code>startTime</code> exactly.</td></tr>
+            <tr><td><code>within-tolerance</code></td><td>true</td><td>Within <code>toleranceMs</code> (default 3h).</td></tr>
+            <tr><td><code>same-day</code></td><td>true</td><td>Same UTC day, but beyond tolerance.</td></tr>
+            <tr><td><code>closest</code></td><td>false</td><td>No time match; nearest fixture returned as fallback.</td></tr>
+            <tr><td><code>none</code></td><td>false</td><td>No common fixture at all (<code>matched: false</code>).</td></tr>
+          </table>
           <div class="code-head"><span class="block-title" style="margin:0;">Examples</span></div>
           <pre><span class="c"># Epoch milliseconds</span>
 GET /find-match?team1=India&amp;team2=Australia&amp;startTime=1822896000000
@@ -766,6 +775,9 @@ POST /find-match
           <pre>{
   <span class="k">"success"</span>: <span class="s">true</span>,
   <span class="k">"matched"</span>: <span class="s">true</span>,
+  <span class="k">"timeMatch"</span>: <span class="s">true</span>,
+  <span class="k">"timeMatchType"</span>: <span class="s">"exact"</span>,
+  <span class="k">"note"</span>: <span class="s">"Exact start-time match found within the selected teams."</span>,
   <span class="k">"strategy"</span>: <span class="s">"1x1"</span>,
   <span class="k">"teams"</span>: {
     <span class="k">"team1"</span>: { <span class="k">"name"</span>: <span class="s">"India"</span>, <span class="k">"slug"</span>: <span class="s">"india-O"</span>, <span class="k">"code"</span>: <span class="s">"O"</span> },
@@ -784,7 +796,7 @@ POST /find-match
   <span class="k">"attempts"</span>: [ <span class="c">/* full combo trace with commonCount + bestTimeMatch */</span> ]
 }
 </pre>
-          <div class="note">When <code>matched</code> is <code>false</code>, the response carries a <code>reason</code> plus the <code>attempts</code> trace so you can debug exactly which combo failed and why.</div>
+          <div class="note">Check <code>timeMatchType</code>: <code>closest</code> means no fixture fell inside the time window, so the nearest one was returned as a best-effort guess — always verify <code>timeDeltaMs</code>. When there is no common fixture at all, <code>matched</code> is <code>false</code> with a <code>reason</code> plus the <code>attempts</code> trace.</div>
         </div>
       </section>
 

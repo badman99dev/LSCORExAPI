@@ -39,6 +39,11 @@ app.get(['/documentation/api', '/documentation', '/api-docs'], (req, res) => {
   res.sendFile(path.join(publicDir, 'documentation.html'));
 });
 
+// UI Integration Tips & live demo playbook
+app.get(['/ui-tips', '/ui', '/tips'], (req, res) => {
+  res.sendFile(path.join(publicDir, 'ui-tips.html'));
+});
+
 // Dedicated Match Scorecard & SSE Live Streaming Next Page
 app.get(['/match', '/match/:id', '/score/:id'], (req, res) => {
   res.sendFile(path.join(publicDir, 'match.html'));

@@ -731,25 +731,31 @@ Content-Type: application/json
       <!-- ============ FIND MATCH ============ -->
       <section class="group" id="find-match">
         <h2><span class="ico">⭐</span> Advanced Match Finder</h2>
-        <p class="group-desc">Give two team names and (optionally) a match start time. The API works out <em>which</em> fixture you mean and returns the full match object.</p>
+        <p class="group-desc">Find a fixture two ways — by <strong>two team names</strong> or by a <strong>series name</strong> — always with a required <code>startTime</code>. Returns the matching fixture object plus how confident the time match is.</p>
         <div class="endpoint">
           <div class="head"><span class="method m-get">GET</span><span class="method m-post">POST</span><span class="path">/find-match</span><a class="btn try" href="/find-match?team1=India&team2=Australia&startTime=1822896000000" target="_blank">Try ↗</a></div>
           <div class="desc">Advanced finder. Aliases: <code>/match-finder</code>, <code>/api/find-match</code>.</div>
-          <div class="note">All three parameters are <strong>required</strong>, including <code>startTime</code> — supplied as <strong>epoch milliseconds since 1970</strong> (e.g. <code>1822896000000</code>) <em>or</em> a datetime string like <code>2026/10/09 13:30:14 +0000</code>.</div>
+          <div class="note"><strong>Two modes.</strong> Provide <code>startTime</code> plus <em>either</em> <code>series</code> <em>or</em> both <code>team1</code> &amp; <code>team2</code>. <code>startTime</code> accepts <strong>epoch milliseconds since 1970</strong> (e.g. <code>1822896000000</code>) or a <strong>datetime string</strong> like <code>2026/10/09 13:30:14 +0000</code>.</div>
           <table class="params">
             <tr><th>Param</th><th>Type</th><th>Description</th></tr>
-            <tr><td><code>team1</code></td><td class="req">required</td><td>First team search term. Aliases: <code>teamA</code>, <code>t1</code>, <code>home</code>, <code>team</code>.</td></tr>
-            <tr><td><code>team2</code></td><td class="req">required</td><td>Second team search term. Aliases: <code>teamB</code>, <code>t2</code>, <code>away</code>, <code>opponent</code>.</td></tr>
             <tr><td><code>startTime</code></td><td class="req">required</td><td>Match start time. Accepts <strong>epoch milliseconds since 1970</strong> (number or numeric string) <em>or</em> a <strong>datetime string</strong> <code>YYYY/MM/DD HH:mm:ss +ZZZZ</code> (e.g. <code>2026/10/09 13:30:14 +0000</code>; <code>-</code> separators, optional seconds &amp; timezone also work). Aliases: <code>start_time</code>, <code>time</code>, <code>start</code>, <code>date</code>.</td></tr>
+            <tr><td><code>series</code></td><td class="req">required*</td><td>Series/tournament name to search. Aliases: <code>seriesName</code>, <code>tournament</code>. *Use series <em>or</em> the two teams.</td></tr>
+            <tr><td><code>team1</code></td><td class="opt">optional</td><td>First team search term (team mode; also an optional filter in series mode). Aliases: <code>teamA</code>, <code>t1</code>, <code>home</code>, <code>team</code>.</td></tr>
+            <tr><td><code>team2</code></td><td class="opt">optional</td><td>Second team search term (team mode; also an optional filter in series mode). Aliases: <code>teamB</code>, <code>t2</code>, <code>away</code>, <code>opponent</code>.</td></tr>
             <tr><td><code>toleranceMs</code></td><td class="opt">optional</td><td>Max |delta| for time matching. Default <code>10800000</code> (3h). Alt: <code>toleranceMin</code>.</td></tr>
-            <tr><td><code>topN</code></td><td class="opt">optional</td><td>How many team search hits to consider per team. Default <code>2</code>.</td></tr>
+            <tr><td><code>topN</code></td><td class="opt">optional</td><td>Team mode only: how many team search hits to consider per team. Default <code>2</code>.</td></tr>
           </table>
-          <div class="block-title">Algorithm</div>
+          <div class="block-title">Mode A — by teams</div>
           <ol style="color:var(--text-muted); font-size:0.86rem; padding-left:22px; margin-top:8px;">
             <li>Searches both team names → takes the top <code>topN</code> Team results for each.</li>
             <li>For combos <code>1x1 → 1x2 → 2x1 → 2x2</code>, fetches both teams' <em>Team Matches &amp; Tours</em> and intersects by match id.</li>
-            <li>Picks the common fixture closest to <code>startTime</code> (exact → within tolerance → same UTC day).</li>
-            <li>First combo (in priority order) that yields a time match wins. If <strong>no</strong> combo has a match within tolerance, the <strong>closest available fixture</strong> is returned instead (best-effort) with <code>timeMatch: false</code>.</li>
+            <li>First combo with a time match wins; else the closest fixture is returned.</li>
+          </ol>
+          <div class="block-title">Mode B — by series</div>
+          <ol style="color:var(--text-muted); font-size:0.86rem; padding-left:22px; margin-top:8px;">
+            <li>Searches the series name (Series <em>and</em> Other tour entities).</li>
+            <li>Prioritises editions whose year matches <code>startTime</code>, then probes their fixtures.</li>
+            <li>Returns the series match closest to <code>startTime</code>. Optional <code>team1</code>/<code>team2</code> filters within the series.</li>
           </ol>
           <div class="block-title">Time-match classification</div>
           <table class="params">
@@ -761,17 +767,23 @@ Content-Type: application/json
             <tr><td><code>none</code></td><td>false</td><td>No common fixture at all (<code>matched: false</code>).</td></tr>
           </table>
           <div class="code-head"><span class="block-title" style="margin:0;">Examples</span></div>
-          <pre><span class="c"># Epoch milliseconds</span>
+          <pre><span class="c"># Team mode — epoch milliseconds</span>
 GET /find-match?team1=India&amp;team2=Australia&amp;startTime=1822896000000
 
-<span class="c"># Datetime string with timezone</span>
+<span class="c"># Team mode — datetime string with timezone</span>
 GET /find-match?team1=India&amp;team2=Australia&amp;startTime=2026/10/09%2013:30:14%20%2B0000
+
+<span class="c"># Series mode</span>
+GET /find-match?series=World%20Cup%202027&amp;startTime=2027/10/07%2008:00:00%20%2B0000
+
+<span class="c"># Series mode + team filter</span>
+GET /find-match?series=Australia%20tour%20of%20South%20Africa%202026&amp;team1=Australia&amp;startTime=2026/10/20%2008:00:00%20%2B0000
 
 <span class="c"># POST body</span>
 POST /find-match
-{ <span class="k">"team1"</span>: <span class="s">"India"</span>, <span class="k">"team2"</span>: <span class="s">"Australia"</span>, <span class="k">"startTime"</span>: <span class="s">"2026/10/09 13:30:14 +0000"</span> }
+{ <span class="k">"series"</span>: <span class="s">"World Cup 2027"</span>, <span class="k">"startTime"</span>: <span class="s">"2027/10/07 08:00:00 +0000"</span> }
 </pre>
-          <div class="block-title">Response</div>
+          <div class="block-title">Response — team mode</div>
           <pre>{
   <span class="k">"success"</span>: <span class="s">true</span>,
   <span class="k">"matched"</span>: <span class="s">true</span>,
@@ -796,7 +808,23 @@ POST /find-match
   <span class="k">"attempts"</span>: [ <span class="c">/* full combo trace with commonCount + bestTimeMatch */</span> ]
 }
 </pre>
-          <div class="note">Check <code>timeMatchType</code>: <code>closest</code> means no fixture fell inside the time window, so the nearest one was returned as a best-effort guess — always verify <code>timeDeltaMs</code>. When there is no common fixture at all, <code>matched</code> is <code>false</code> with a <code>reason</code> plus the <code>attempts</code> trace.</div>
+          <div class="block-title">Response — series mode</div>
+          <pre>{
+  <span class="k">"success"</span>: <span class="s">true</span>,
+  <span class="k">"mode"</span>: <span class="s">"series"</span>,
+  <span class="k">"matched"</span>: <span class="s">true</span>,
+  <span class="k">"timeMatchType"</span>: <span class="s">"exact"</span>,
+  <span class="k">"note"</span>: <span class="s">"Exact start-time match found within the series."</span>,
+  <span class="k">"series"</span>: { <span class="k">"name"</span>: <span class="s">"World Cup 2027"</span>, <span class="k">"slug"</span>: <span class="s">"world-cup-2027-2JR"</span>, <span class="k">"id"</span>: <span class="s">"2JR"</span> },
+  <span class="k">"seriesCandidates"</span>: [ <span class="c">/* probed series, best-year first */</span> ],
+  <span class="k">"teamFilter"</span>: <span class="s">null</span>,
+  <span class="k">"seriesMatchesCount"</span>: <span class="s">12</span>,
+  <span class="k">"timeDeltaMs"</span>: <span class="s">0</span>,
+  <span class="k">"match"</span>: { <span class="k">"id"</span>: <span class="s">"14P3"</span>, <span class="k">"teams"</span>: {...} },
+  <span class="k">"candidates"</span>: [ <span class="c">/* series fixtures, closest first */</span> ]
+}
+</pre>
+          <div class="note">Check <code>timeMatchType</code>: <code>closest</code> means no fixture fell inside the time window, so the nearest one was returned as a best-effort guess — always verify <code>timeDeltaMs</code>. When there is no common fixture at all, <code>matched</code> is <code>false</code> with a <code>reason</code>.</div>
         </div>
       </section>
 

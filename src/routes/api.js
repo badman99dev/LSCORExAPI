@@ -326,26 +326,33 @@ const handleFindMatch = async (req, res) => {
     const src = { ...req.query, ...(req.body || {}) };
     const team1 = src.team1 || src.teamA || src.t1 || src.home || src.team;
     const team2 = src.team2 || src.teamB || src.t2 || src.away || src.opponent;
+    const series = src.series || src.seriesName || src.tournament || src.series_name;
     const startTime = src.startTime || src.start_time || src.time || src.start || src.date;
     const toleranceMs = src.toleranceMs
       ? Number(src.toleranceMs)
       : (src.toleranceMin ? Number(src.toleranceMin) * 60000 : undefined);
     const topN = src.topN ? Number(src.topN) : undefined;
 
-    if (!team1 || !team2 || startTime == null || startTime === '') {
+    const hasSeries = series != null && series !== '';
+    const hasTeams = team1 != null && team1 !== '' && team2 != null && team2 !== '';
+
+    // Require startTime always; require either a series name OR both teams.
+    if (startTime == null || startTime === '' || (!hasSeries && !hasTeams)) {
       const missing = [];
-      if (!team1) missing.push("team1");
-      if (!team2) missing.push("team2");
+      if (!hasSeries && !hasTeams) missing.push("series (or both team1 & team2)");
+      else {
+        if (!hasTeams && !hasSeries) { if (!team1) missing.push("team1"); if (!team2) missing.push("team2"); }
+      }
       if (startTime == null || startTime === '') missing.push("startTime");
       return res.status(400).json({
         success: false,
         error: `Missing required parameter(s): ${missing.join(", ")}`,
-        hint: "startTime must be epoch milliseconds since 1970 (e.g. 1822896000000) or datetime \"YYYY/MM/DD HH:mm:ss +0000\"",
-        usage: "/find-match?team1=India&team2=Australia&startTime=1822896000000",
+        hint: "Provide startTime + either a series name, or both team1 & team2. startTime accepts epoch ms or datetime \"YYYY/MM/DD HH:mm:ss +0000\"",
+        usage: "/find-match?team1=India&team2=Australia&startTime=1822896000000  |  /find-match?series=World Cup 2027&startTime=1822896000000",
       });
     }
 
-    const result = await findMatch({ team1, team2, startTime, toleranceMs, topN });
+    const result = await findMatch({ team1, team2, series, startTime, toleranceMs, topN });
     if (result.invalidStartTime) {
       return res.status(400).json({
         success: false,
@@ -354,7 +361,7 @@ const handleFindMatch = async (req, res) => {
         usage: "/find-match?team1=India&team2=Australia&startTime=1822896000000",
       });
     }
-    res.json({ success: true, query: { team1, team2, startTime }, ...result });
+    res.json({ success: true, query: { team1: team1 || null, team2: team2 || null, series: series || null, startTime }, ...result });
   } catch (err) {
     res.status(500).json({ success: false, error: err.message });
   }

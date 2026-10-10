@@ -45,36 +45,49 @@ Deployable on **Render** (via `render.yaml`), VPS, Docker, or any Node.js enviro
 
 ## 🔎 Advanced Match Finder
 
-Give it two team names and a **required** match start time — it works out *which* fixture
-you mean, then returns the full match object.
+Find a fixture two ways — by **two team names** or by a **series name** — always with a
+**required** start time.
 
-**How it works:**
+**Mode A — by teams** (`team1` + `team2` + `startTime`):
 1. Searches each team name → takes the top **2** Team results for both teams.
 2. For every ordered combo — `1x1 → 1x2 → 2x1 → 2x2` — fetches both teams'
    *Team Matches & Tours* and intersects them by match id.
 3. Inside each combo, picks the common fixture whose start time is closest to the
    supplied start time (exact → within tolerance → same UTC day). `1x1` (top × top)
    has the highest priority; the first combo that yields a time match wins.
-4. If **no** fixture falls inside the time tolerance, the **closest available fixture**
-   is returned as a best-effort fallback, flagged with `timeMatch: false` and
-   `timeMatchType: "closest"`.
+
+**Mode B — by series** (`series` + `startTime`):
+1. Searches the series name (Series *and* Other tour entities).
+2. Prioritises editions whose year matches `startTime`, then probes their fixtures.
+3. Returns the series match closest to `startTime`. Optional `team1`/`team2` filter within the series.
+
+**Fallback:** if **no** fixture falls inside the time tolerance, the **closest available fixture**
+is returned as a best-effort fallback, flagged with `timeMatch: false` and
+`timeMatchType: "closest"`.
 
 ```bash
-# startTime as epoch milliseconds since 1970 (required)
+# Team mode — startTime as epoch milliseconds since 1970 (required)
 GET /find-match?team1=India&team2=Australia&startTime=1822896000000
 
-# startTime as a datetime string (YYYY/MM/DD HH:mm:ss +ZZZZ)
+# Team mode — startTime as a datetime string (YYYY/MM/DD HH:mm:ss +ZZZZ)
 GET /find-match?team1=India&team2=Australia&startTime=2026/10/09%2013:30:14%20%2B0000
 
+# Series mode
+GET /find-match?series=World%20Cup%202027&startTime=2027/10/07%2008:00:00%20%2B0000
+
+# Series mode + team filter
+GET /find-match?series=Australia%20tour%20of%20South%20Africa%202026&team1=Australia&startTime=2026/10/20%2008:00:00%20%2B0000
+
 # POST body
-POST /find-match  { "team1": "India", "team2": "Australia", "startTime": "2026/10/09 13:30:14 +0000" }
+POST /find-match  { "series": "World Cup 2027", "startTime": "2027/10/07 08:00:00 +0000" }
 ```
 
 **Optional query params:** `toleranceMs` (default `10800000` = 3h) or `toleranceMin`,
-`topN` (default `2`). Response includes `matched`, `timeMatch` / `timeMatchType`
-(`exact` · `within-tolerance` · `same-day` · `closest` · `none`), `strategy` (winning
-combo), `match`, `candidates`, and a full `attempts` trace. Missing or invalid
-`startTime` returns `400`.
+`topN` (default `2`, team mode). Response includes `matched`, `mode` (`series` when
+used), `timeMatch` / `timeMatchType` (`exact` · `within-tolerance` · `same-day` ·
+`closest` · `none`), `strategy` (team mode), `series` (series mode), `match`,
+`candidates`, and a full `attempts` trace (team mode). Missing or invalid
+`startTime`, or neither a series nor both teams, returns `400`.
 
 ---
 

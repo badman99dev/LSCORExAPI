@@ -1,0 +1,933 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>UI playbook — LSCORExAPI</title>
+<meta name="description" content="How to build a Hotstar-style live cricket UI with LSCORExAPI: jersey and head compositing, rolling score digits and over trackers, each with a live demo.">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Barlow+Condensed:wght@600;700&family=JetBrains+Mono:wght@400;600&family=Manrope:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --bg: #060a14;
+    --panel: #0f192d;
+    --panel2: #15223b;
+    --line: #1e2c49;
+    --ink: #f2f5fc;
+    --soft: #b9c4dc;
+    --muted: #8d9bb8;
+    --brand: #1f7bff;
+    --brand2: #7b4dff;
+    --live: #ff3d57;
+    --good: #2ddc8f;
+    --gold: #ffc53d;
+    --ui: 'Manrope', system-ui, -apple-system, 'Segoe UI', sans-serif;
+    --num: 'Barlow Condensed', 'Arial Narrow', 'Roboto Condensed', sans-serif;
+    --mono: 'JetBrains Mono', ui-monospace, 'SF Mono', Menlo, monospace;
+    /* jersey + head tuning (the lab below edits these live) */
+    --head-w: 40%;
+    --head-y: 2%;
+    --fade: 26%;
+  }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  html { scroll-behavior: smooth; scroll-padding-top: 76px; }
+  body {
+    background:
+      radial-gradient(900px 520px at 80% -8%, rgba(31,123,255,.16), transparent 60%),
+      radial-gradient(700px 480px at -5% 12%, rgba(123,77,255,.10), transparent 60%),
+      var(--bg);
+    color: var(--ink);
+    font-family: var(--ui);
+    line-height: 1.6;
+    -webkit-font-smoothing: antialiased;
+  }
+  a { color: inherit; }
+  :focus-visible { outline: 2px solid #6aa8ff; outline-offset: 3px; border-radius: 6px; }
+  .wrap { max-width: 1160px; margin: 0 auto; padding: 0 24px; }
+
+  /* ---------- top bar ---------- */
+  .bar {
+    position: sticky; top: 0; z-index: 50;
+    background: rgba(6,10,20,.78); backdrop-filter: blur(14px);
+    border-bottom: 1px solid var(--line);
+  }
+  .bar .wrap { display: flex; align-items: center; justify-content: space-between; gap: 16px; height: 60px; }
+  .brand { font-weight: 800; letter-spacing: -.01em; text-decoration: none; display: flex; align-items: center; gap: 10px; }
+  .brand i { width: 9px; height: 9px; border-radius: 50%; background: var(--live); box-shadow: 0 0 0 4px rgba(255,61,87,.18); }
+  .brand span { color: var(--muted); font-weight: 600; font-size: .85rem; }
+  .bar nav { display: flex; gap: 4px; flex-wrap: wrap; justify-content: flex-end; }
+  .bar nav a { text-decoration: none; color: var(--muted); font-size: .84rem; font-weight: 600; padding: 7px 12px; border-radius: 99px; transition: color .15s, background .15s; }
+  .bar nav a:hover { color: var(--ink); background: var(--panel); }
+  .bar nav a.pill { background: linear-gradient(135deg, var(--brand), var(--brand2)); color: #fff; }
+
+  /* ---------- hero ---------- */
+  .hero { display: grid; grid-template-columns: minmax(0, 1.05fr) minmax(0, .95fr); gap: 56px; align-items: center; padding: 60px 0 72px; }
+  .hero > div { min-width: 0; }
+  .app > * { min-width: 0; }
+  .hero h1 { font-size: clamp(2.3rem, 5.2vw, 4rem); line-height: 1.04; letter-spacing: -.03em; font-weight: 800; max-width: 14ch; }
+  .hero p.lead { margin-top: 22px; font-size: 1.1rem; color: var(--soft); max-width: 46ch; }
+  .jumps { margin-top: 30px; display: flex; flex-wrap: wrap; gap: 10px; }
+  .btn { display: inline-flex; align-items: center; gap: 8px; text-decoration: none; font-weight: 700; font-size: .92rem; padding: 12px 18px; border-radius: 99px; border: 1px solid var(--line); background: var(--panel); color: var(--ink); transition: border-color .15s, transform .15s; cursor: pointer; font-family: inherit; }
+  .btn:hover { border-color: #3a5694; }
+  .btn.primary { background: linear-gradient(135deg, var(--brand), var(--brand2)); border-color: transparent; }
+  .hint { margin-top: 18px; font-size: .84rem; color: var(--muted); }
+
+  /* ---------- sections ---------- */
+  section.sec { padding: 76px 0; border-top: 1px solid var(--line); }
+  .sec h2 { font-size: clamp(1.7rem, 3.4vw, 2.5rem); line-height: 1.1; letter-spacing: -.025em; font-weight: 800; }
+  .sec .intro { margin-top: 14px; color: var(--soft); max-width: 62ch; font-size: 1.04rem; }
+  .split { margin-top: 40px; display: grid; grid-template-columns: minmax(0, 5fr) minmax(0, 6fr); gap: 52px; align-items: start; }
+  .demo-col { position: sticky; top: 84px; }
+  .tips { list-style: none; display: grid; gap: 22px; }
+  .tips li { padding-left: 18px; border-left: 2px solid var(--line); }
+  .tips li b { display: block; font-size: 1.02rem; font-weight: 700; margin-bottom: 3px; }
+  .tips li span { color: var(--soft); font-size: .95rem; }
+  .tips.two { grid-template-columns: 1fr 1fr; gap: 28px 44px; }
+  code.i { font-family: var(--mono); font-size: .84em; background: var(--panel); border: 1px solid var(--line); padding: 1px 6px; border-radius: 6px; color: #cfe0ff; }
+
+  /* ---------- code blocks ---------- */
+  .code { position: relative; margin-top: 22px; background: #070d1b; border: 1px solid var(--line); border-radius: 16px; padding: 18px 20px; overflow: auto; font: 12.5px/1.7 var(--mono); color: #cfe0ff; white-space: pre; tab-size: 2; }
+  .code .cp { position: absolute; top: 10px; right: 10px; font: 600 11px var(--ui); color: var(--soft); background: var(--panel2); border: 1px solid var(--line); border-radius: 99px; padding: 5px 11px; cursor: pointer; }
+  .code .cp:hover { color: #fff; border-color: #3a5694; }
+  .cap { margin-top: 26px; font-weight: 700; font-size: .95rem; color: var(--soft); }
+
+  /* =====================================================
+     Broadcast UI (the demo app)
+     ===================================================== */
+  .phone { width: min(100%, 392px); margin: 0 auto; border-radius: 40px; padding: 10px; background: #0a1224; border: 1px solid var(--line); box-shadow: 0 50px 90px -40px rgba(31,123,255,.45), 0 0 0 6px #070d1b; }
+  .app { border-radius: 31px; overflow: hidden; background: linear-gradient(180deg, #0d1730 0%, #070e1e 70%); padding: 14px; display: grid; gap: 12px; }
+  .app-top { display: flex; align-items: center; gap: 10px; font-size: .78rem; color: var(--soft); font-weight: 600; }
+  .app-top .t { flex: 1; min-width: 0; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .back { width: 28px; height: 28px; border-radius: 50%; background: #14203a; display: grid; place-items: center; color: var(--soft); font-size: 1rem; line-height: 1; }
+  .live-pill { display: inline-flex; align-items: center; gap: 6px; background: rgba(255,61,87,.14); color: #ff7e90; border: 1px solid rgba(255,61,87,.4); border-radius: 99px; padding: 3px 10px; font-weight: 800; font-size: .66rem; letter-spacing: .06em; }
+  .live-pill::before { content: ''; width: 6px; height: 6px; border-radius: 50%; background: var(--live); animation: pulse 1.4s infinite; }
+  @keyframes pulse { 50% { box-shadow: 0 0 0 5px rgba(255,61,87,0); opacity: .55; } 0% { box-shadow: 0 0 0 0 rgba(255,61,87,.5); } }
+
+  .sc { position: relative; border-radius: 22px; padding: 16px; border: 1px solid #243662; background: radial-gradient(120% 150% at 0% 0%, rgba(31,123,255,.38), transparent 62%), linear-gradient(160deg, #142349, #0b1530); overflow: hidden; }
+  .sc-body { display: grid; gap: 14px; transition: opacity .2s, filter .2s; }
+  .sc.has-banner .sc-body { opacity: .22; filter: blur(1.5px); }
+  .sc-row { display: flex; align-items: center; justify-content: space-between; gap: 10px; }
+  .team { display: flex; align-items: center; gap: 10px; min-width: 0; }
+  .badge { width: 40px; height: 40px; border-radius: 50%; background: #0a1330; border: 1px solid #2a3d6b; display: grid; place-items: center; overflow: hidden; flex: none; }
+  .badge img { width: 78%; height: 78%; object-fit: contain; }
+  .tn { font-weight: 800; font-size: 1.02rem; line-height: 1.1; }
+  .tn small { display: block; font-weight: 600; font-size: .68rem; color: var(--muted); }
+  .num { font-family: var(--num); font-weight: 700; }
+  .big { font-size: 3.7rem; line-height: 1; display: inline-flex; align-items: baseline; }
+  .big .sep { opacity: .45; padding: 0 .05em; }
+  .ov { font-family: var(--num); font-weight: 600; font-size: 1.35rem; color: var(--soft); text-align: right; line-height: 1; }
+  .ov small { display: block; font-family: var(--ui); font-size: .66rem; font-weight: 600; color: var(--muted); margin-top: 4px; }
+  .chase { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 8px 10px; padding-top: 12px; border-top: 1px solid rgba(120,150,220,.2); }
+  .need { font-size: .95rem; font-weight: 700; color: #dfe8ff; white-space: nowrap; display: inline-flex; align-items: baseline; gap: 5px; }
+  .need .num { font-size: 1.4rem; color: #fff; }
+  .rates { display: flex; gap: 6px; white-space: nowrap; }
+  .rate { background: rgba(8,14,30,.55); border: 1px solid #22345e; border-radius: 99px; padding: 4px 10px; font-size: .72rem; font-weight: 700; color: var(--soft); display: inline-flex; gap: 6px; align-items: baseline; }
+  .rate .num { font-size: 1rem; color: #fff; }
+  .result { font-weight: 800; font-size: 1.05rem; color: var(--good); }
+
+  .banner { position: absolute; inset: 0; display: grid; place-items: center; pointer-events: none; font-family: var(--num); font-weight: 700; font-size: 3.6rem; letter-spacing: .05em; opacity: 0; }
+  .banner.show { animation: banner 1.15s ease-out; }
+  .banner.four { color: #86b9ff; text-shadow: 0 0 30px rgba(31,123,255,.8); }
+  .banner.six { color: #dcc2ff; text-shadow: 0 0 30px rgba(155,100,255,.9); }
+  .banner.wicket { color: #ff8a9a; text-shadow: 0 0 30px rgba(255,61,87,.8); }
+  .banner.wide { color: var(--gold); font-size: 2.6rem; }
+  @keyframes banner { 0% { opacity: 0; transform: scale(.7); } 16% { opacity: 1; transform: scale(1.09); } 70% { opacity: 1; transform: scale(1); } 100% { opacity: 0; transform: scale(1.05); } }
+
+  .bats { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+  .bat { display: grid; grid-template-columns: 58px minmax(0, 1fr); gap: 8px; align-items: end; border-radius: 18px; background: var(--panel); border: 1px solid var(--line); padding: 10px 10px 8px; transition: border-color .25s, background .25s; }
+  .bat.on { border-color: #2e5fd1; background: linear-gradient(180deg, #12244a, var(--panel)); }
+  .bat .bi { padding-bottom: 4px; min-width: 0; }
+  .bat .nm { font-size: .72rem; font-weight: 700; color: var(--soft); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .bat.on .nm::after { content: ' *'; color: var(--brand); }
+  .bat .rn { font-family: var(--num); font-weight: 700; font-size: 2rem; line-height: 1.05; }
+  .bat .bl { font-size: .72rem; color: var(--muted); font-weight: 600; display: flex; align-items: baseline; gap: 2px; white-space: nowrap; }
+  .bat .bl .roll { height: 1em; }
+  .bat .sr { margin-left: 6px; }
+
+  .ovc { border-radius: 18px; background: var(--panel); border: 1px solid var(--line); padding: 12px; display: grid; gap: 10px; }
+  .ovh { display: flex; justify-content: space-between; align-items: baseline; font-size: .78rem; font-weight: 700; color: var(--soft); }
+  .ovh b { color: #fff; font-weight: 800; }
+  .ovf { display: flex; justify-content: space-between; gap: 8px; font-size: .7rem; color: var(--muted); font-weight: 600; }
+
+  .chips { display: flex; flex-wrap: wrap; gap: 7px; align-items: center; }
+  .chip { width: 34px; height: 34px; border-radius: 50%; display: grid; place-items: center; font-weight: 800; font-size: .92rem; background: #1a2745; color: var(--soft); border: 1px solid #27395f; }
+  .chip.c0 { color: #6d7ca2; }
+  .chip.c4 { background: var(--brand); border-color: #6aa8ff; color: #fff; }
+  .chip.c6 { background: linear-gradient(135deg, #8a5bff, #c04dff); border-color: #bd98ff; color: #fff; }
+  .chip.cw { background: var(--live); border-color: #ff8d9c; color: #fff; }
+  .chip.cx { background: transparent; border: 1.5px solid var(--gold); color: var(--gold); font-size: .68rem; }
+  .chip.empty { background: transparent; border: 1px dashed #2a3b60; }
+  .chip.next { border-color: #4d78d6; animation: next 1.6s infinite; }
+  .chip.pop { animation: pop .5s cubic-bezier(.2, 1.6, .4, 1); }
+  .chips.mini { gap: 5px; }
+  .chips.mini .chip { width: 25px; height: 25px; font-size: .68rem; }
+  .chips.mini .chip.cx { font-size: .55rem; }
+  @keyframes pop { from { transform: scale(.3); opacity: 0; } to { transform: scale(1); opacity: 1; } }
+  @keyframes next { 50% { box-shadow: 0 0 0 5px rgba(77,120,214,.14); } }
+
+  /* ---------- kit: jersey with the head tucked in ---------- */
+  .kit { position: relative; width: 100%; aspect-ratio: 1 / 1.05; }
+  .kit-jersey { position: absolute; left: 0; right: 0; bottom: 0; width: 100%; height: 90%; object-fit: contain; object-position: center bottom; z-index: 2; }
+  .kit-headwrap { position: absolute; left: 50%; top: var(--head-y); width: var(--head-w); transform: translateX(-50%); z-index: 3; }
+  .kit-head { display: block; width: 100%; -webkit-mask-image: linear-gradient(to bottom, #000 calc(100% - var(--fade)), transparent 100%); mask-image: linear-gradient(to bottom, #000 calc(100% - var(--fade)), transparent 100%); }
+  .kit-headwrap::after { content: ''; position: absolute; left: 6%; right: 6%; bottom: -4%; height: 18%; background: radial-gradient(closest-side, rgba(0,0,0,.55), transparent); filter: blur(3px); z-index: -1; }
+  html[data-kit="behind"] .kit-headwrap { z-index: 1; }
+  html[data-kit="behind"] .kit-head { -webkit-mask-image: none; mask-image: none; }
+  html[data-kit="behind"] .kit-headwrap::after { display: none; }
+  .kit img.bad { visibility: hidden; }
+  html.guides .kit { outline: 1px dashed rgba(255,255,255,.25); }
+  html.guides .kit-jersey { outline: 1px dashed #4d8dff; }
+  html.guides .kit-headwrap { outline: 1px dashed #ff5c75; }
+  .kit.only-jersey .kit-headwrap, .kit.only-head .kit-jersey { visibility: hidden; }
+
+  /* ---------- rolling digits ---------- */
+  .roll { display: inline-flex; align-items: baseline; line-height: 1; height: 1em; font-variant-numeric: tabular-nums; }
+  .rd { display: inline-block; height: 1em; overflow: hidden; }
+  .rs { display: flex; flex-direction: column; will-change: transform; transition: transform .6s cubic-bezier(.22, 1, .36, 1); }
+  .rs i { display: block; height: 1em; line-height: 1; font-style: normal; }
+  .rc { display: inline-block; line-height: 1; }
+  .roll.f-four, .roll.f-six, .roll.f-wkt { animation: flash .9s ease-out; }
+  .f-four { --c: #86b9ff; } .f-six { --c: #dcc2ff; } .f-wkt { --c: #ff8a9a; }
+  @keyframes flash { 0%, 40% { color: var(--c); text-shadow: 0 0 18px var(--c); } 100% { color: inherit; text-shadow: none; } }
+
+  /* ---------- pad ---------- */
+  .pad { display: flex; flex-wrap: wrap; gap: 8px; justify-content: center; margin-top: 18px; }
+  .pad button { min-width: 44px; height: 44px; padding: 0 14px; border-radius: 99px; border: 1px solid var(--line); background: var(--panel); color: var(--ink); font: 800 .95rem var(--ui); cursor: pointer; transition: background .15s, border-color .15s, transform .1s; }
+  .pad button:hover:not(:disabled) { border-color: #3a5694; background: var(--panel2); }
+  .pad button:active:not(:disabled) { transform: scale(.94); }
+  .pad button:disabled { opacity: .4; cursor: not-allowed; }
+  .pad button[data-b="4"] { color: #86b9ff; } .pad button[data-b="6"] { color: #cba5ff; } .pad button[data-b="W"] { color: #ff8a9a; } .pad button[data-b="Wd"] { color: var(--gold); }
+  .pad button.ghost { font-weight: 700; font-size: .82rem; color: var(--soft); background: transparent; }
+  .pad button.ghost[aria-pressed="true"] { color: #fff; background: rgba(31,123,255,.25); border-color: #3b74d8; }
+  .pad-note { text-align: center; font-size: .78rem; color: var(--muted); margin-top: 10px; }
+
+  /* ---------- demo cards ---------- */
+  .card { background: var(--panel); border: 1px solid var(--line); border-radius: 22px; padding: 22px; }
+  .tiles { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+  .tile { background: #0a1326; border: 1px solid var(--line); border-radius: 16px; padding: 14px 16px; }
+  .tile .v { font-family: var(--num); font-weight: 700; font-size: 3.4rem; line-height: 1; display: flex; align-items: baseline; }
+  .tile .k { font-size: .76rem; color: var(--muted); font-weight: 600; margin-top: 8px; }
+  .prog { display: grid; grid-template-columns: repeat(20, 1fr); gap: 3px; }
+  .prog i { height: 9px; border-radius: 3px; background: #1a2745; position: relative; overflow: hidden; }
+  .prog i.pp { background: #2a2748; }
+  .prog i::after { content: ''; position: absolute; inset: 0; width: var(--p, 0%); background: var(--brand); transition: width .45s ease; }
+  .prog i.done::after { width: 100%; }
+  .hist { display: grid; gap: 8px; }
+  .hrow { display: grid; grid-template-columns: 62px minmax(0, 1fr) 34px; gap: 10px; align-items: center; font-size: .78rem; color: var(--muted); font-weight: 600; }
+  .hrow b { color: var(--ink); text-align: right; font-family: var(--num); font-size: 1.25rem; }
+  .stack { display: grid; gap: 18px; }
+  .lbl { font-size: .8rem; font-weight: 700; color: var(--soft); display: flex; justify-content: space-between; align-items: baseline; }
+  .lbl em { font-style: normal; color: var(--muted); font-weight: 600; }
+  .ovbig { font-family: var(--num); font-weight: 700; font-size: 2.4rem; line-height: 1; display: inline-flex; align-items: baseline; }
+
+  /* ---------- kit lab ---------- */
+  .lab-view { display: grid; grid-template-columns: 1fr 1fr 1.5fr; gap: 14px; align-items: end; }
+  .lab-view figure { background: #0a1326; border: 1px solid var(--line); border-radius: 18px; padding: 14px 14px 10px; background-image: radial-gradient(90% 80% at 50% 0%, rgba(31,123,255,.22), transparent 70%); }
+  .lab-view figcaption { margin-top: 8px; text-align: center; font-size: .74rem; color: var(--muted); font-weight: 600; }
+  .ctrls { margin-top: 16px; display: grid; gap: 14px; }
+  .fld { display: grid; gap: 6px; font-size: .78rem; font-weight: 700; color: var(--soft); }
+  .fld input[type=text], .fld select { background: #0a1326; border: 1px solid var(--line); color: var(--ink); border-radius: 12px; padding: 10px 12px; font: 600 .9rem var(--mono); width: 100%; }
+  .fld input[type=range] { width: 100%; accent-color: var(--brand); }
+  .fld .row { display: flex; justify-content: space-between; }
+  .fld .row output { font-family: var(--mono); color: var(--muted); font-weight: 400; }
+  .grid2 { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+  .grid3 { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 12px; }
+  .presets { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; }
+  .presets .btn { padding: 8px 14px; font-size: .82rem; }
+  .chk { display: inline-flex; gap: 8px; align-items: center; font-size: .82rem; font-weight: 600; color: var(--soft); cursor: pointer; }
+
+  /* ---------- table ---------- */
+  .tbl { width: 100%; border-collapse: collapse; margin-top: 30px; font-size: .9rem; }
+  .tbl th { text-align: left; font-weight: 700; color: var(--muted); font-size: .78rem; padding: 0 14px 10px 0; }
+  .tbl td { padding: 13px 14px 13px 0; border-top: 1px solid var(--line); vertical-align: top; color: var(--soft); }
+  .tbl td:first-child { font-family: var(--mono); font-size: .8rem; color: #cfe0ff; white-space: nowrap; }
+  .tbl-wrap { overflow-x: auto; }
+
+  footer { border-top: 1px solid var(--line); padding: 36px 0 60px; color: var(--muted); font-size: .88rem; }
+  footer .wrap { display: flex; flex-wrap: wrap; gap: 14px 28px; justify-content: space-between; }
+
+  /* ---------- responsive ---------- */
+  @media (max-width: 960px) {
+    .hero { grid-template-columns: minmax(0, 1fr); gap: 40px; padding-top: 40px; }
+    .hero h1 { max-width: 18ch; }
+    .split { grid-template-columns: minmax(0, 1fr); gap: 34px; }
+    .demo-col { position: static; }
+    .tips.two { grid-template-columns: minmax(0, 1fr); }
+    .bar nav a:not(.pill) { display: none; }
+  }
+  @media (max-width: 520px) {
+    .wrap { padding: 0 16px; }
+    .lab-view { grid-template-columns: 1fr 1fr; }
+    .lab-view figure:last-child { grid-column: 1 / -1; }
+    .grid3 { grid-template-columns: 1fr; }
+    .big { font-size: 3.2rem; }
+    .phone { border-radius: 34px; padding: 8px; box-shadow: 0 30px 60px -30px rgba(31,123,255,.45); }
+    .app { padding: 12px; border-radius: 27px; }
+    .bat { grid-template-columns: 46px minmax(0, 1fr); padding: 8px; }
+    .sc { padding: 14px; }
+    .tile .v { font-size: 2.8rem; }
+  }
+  @media (prefers-reduced-motion: reduce) {
+    html { scroll-behavior: auto; }
+    *, *::before, *::after { animation-duration: .01ms !important; animation-iteration-count: 1 !important; transition-duration: .01ms !important; }
+  }
+</style>
+</head>
+<body>
+
+<header class="bar">
+  <div class="wrap">
+    <a class="brand" href="/ui-tips"><i></i>LSCORExAPI <span>UI playbook</span></a>
+    <nav aria-label="Sections">
+      <a href="#layout">Layout</a>
+      <a href="#kit">Jersey + head</a>
+      <a href="#roll">Rolling digits</a>
+      <a href="#overs">Overs</a>
+      <a href="#wire">Wire it up</a>
+      <a href="/documentation/api">API docs</a>
+      <a class="pill" href="/docs">Console</a>
+    </nav>
+  </div>
+</header>
+
+<main>
+  <!-- ================= HERO + LIVE PHONE ================= -->
+  <div class="wrap">
+    <div class="hero">
+      <div>
+        <h1>Build a live score screen people don't leave</h1>
+        <p class="lead">Real jerseys with the player's head tucked into the collar, digits that roll the moment the score moves, and an over tracker you can read at a glance. Everything on this page is running live in the phone — bowl a ball and watch it react.</p>
+        <div class="jumps">
+          <a class="btn primary" href="#kit">Jersey + head lab</a>
+          <a class="btn" href="#roll">Rolling digits</a>
+          <a class="btn" href="#overs">Over tracker</a>
+        </div>
+        <p class="hint">Sample data. In your app every value comes from <code class="i">/matches/:id</code> and the SSE stream.</p>
+      </div>
+
+      <div>
+        <div class="phone" aria-label="Live match demo">
+          <div class="app">
+            <div class="app-top">
+              <span class="back" aria-hidden="true">‹</span>
+              <span class="t">West Indies tour of India · 2nd T20</span>
+              <span class="live-pill">LIVE</span>
+            </div>
+
+            <div class="sc" data-sc>
+              <div class="sc-body">
+                <div class="sc-row">
+                  <div class="team">
+                    <div class="badge"><img alt="" decoding="async" src="https://cricketvectors.akamaized.net/jersey/limited/org/2F.png"></div>
+                    <div class="tn">TMA<small>batting</small></div>
+                  </div>
+                  <div class="ov"><span class="roll" data-bind="ovI"></span>.<span class="roll" data-bind="ovB"></span><small>overs</small></div>
+                </div>
+                <div class="sc-row" style="justify-content:flex-start">
+                  <div class="big num"><span class="roll" data-bind="runs"></span><span class="sep">/</span><span class="roll" data-bind="wkts"></span></div>
+                </div>
+                <div class="chase" data-chase>
+                  <div class="need">Need <span class="num"><span class="roll" data-bind="need"></span></span> off <span class="num"><span class="roll" data-bind="left"></span></span></div>
+                  <div class="rates">
+                    <span class="rate">CRR <span class="num"><span class="roll" data-bind="crr"></span></span></span>
+                    <span class="rate">RRR <span class="num"><span class="roll" data-bind="rrr"></span></span></span>
+                  </div>
+                </div>
+                <div class="result" data-result hidden></div>
+              </div>
+              <div class="banner" data-banner aria-hidden="true"></div>
+            </div>
+
+            <div class="bats">
+              <div class="bat" data-bat="0">
+                <div class="kit" data-kit></div>
+                <div class="bi">
+                  <div class="nm"><span class="n"></span></div>
+                  <div class="rn"><span class="roll" data-f="r"></span></div>
+                  <div class="bl">(<span class="roll" data-f="b"></span>)<span class="sr">SR <span data-f="sr"></span></span></div>
+                </div>
+              </div>
+              <div class="bat" data-bat="1">
+                <div class="kit" data-kit></div>
+                <div class="bi">
+                  <div class="nm"><span class="n"></span></div>
+                  <div class="rn"><span class="roll" data-f="r"></span></div>
+                  <div class="bl">(<span class="roll" data-f="b"></span>)<span class="sr">SR <span data-f="sr"></span></span></div>
+                </div>
+              </div>
+            </div>
+
+            <div class="ovc">
+              <div class="ovh"><span>This over</span><span>Over <b data-t="ovnum"></b> · <b data-t="ovruns"></b> runs</span></div>
+              <div class="chips" data-chips></div>
+              <div class="ovf"><span data-t="bowl"></span><span data-t="pship"></span></div>
+            </div>
+          </div>
+        </div>
+        <div class="pad" data-pad></div>
+        <p class="pad-note">Tap a ball. Same simulation drives every demo below.</p>
+      </div>
+    </div>
+  </div>
+
+  <!-- ================= LAYOUT ================= -->
+  <section class="sec" id="layout">
+    <div class="wrap">
+      <h2>Layout that reads like a broadcast</h2>
+      <p class="intro">A score screen gets about a second of attention between deliveries. Build the hierarchy so that second is enough.</p>
+      <ul class="tips two" style="margin-top:38px">
+        <li><b>Make the score the loudest thing</b><span>Runs and wickets at 56–64px in a condensed numeral face. Everything else sits at a third of that size or less.</span></li>
+        <li><b>Order the screen by how fast it changes</b><span>Score, chase line, batters, this over, bowler, partnership. The data that moves every ball lives where the eye already is.</span></li>
+        <li><b>Say the chase as a sentence</b><span>"Need 44 off 22" lands faster than "RRR 12.00". Keep both, but make the run rates small secondary chips.</span></li>
+        <li><b>Give each colour one job</b><span>Red is live and wickets, blue is a four, violet is a six, amber is an extra. After a few balls viewers read the over without reading a letter.</span></li>
+        <li><b>Let team colour glow, not fill</b><span>Use <code class="i">colors.primary</code> from <code class="i">/team/:id</code> as a soft radial behind the score card. Keep surfaces neutral and dark so jerseys and faces are the brightest things on screen.</span></li>
+        <li><b>Celebrate once per ball</b><span>One banner (FOUR, SIX, WICKET) plus the rolling number is enough. Animating the whole screen on every update makes it feel nervous.</span></li>
+      </ul>
+    </div>
+  </section>
+
+  <!-- ================= JERSEY + HEAD ================= -->
+  <section class="sec" id="kit">
+    <div class="wrap">
+      <h2>The jersey with the head tucked in</h2>
+      <p class="intro">Two transparent PNGs in one square box. The jersey is the base, the player's head sits on it and its lower edge melts into the collar, so it looks like he's wearing the shirt. Tune it on the right — the phone above updates too.</p>
+
+      <div class="split">
+        <ul class="tips">
+          <li><b>One box, always the same ratio</b><span>Fix the aspect ratio on the wrapper so every player lines up in a squad grid, whatever the image sizes are.</span></li>
+          <li><b>Head about 40% of the jersey width</b><span>Let it overlap the collar by roughly a tenth of the box height. Too big and it reads as a sticker, too small and it disappears.</span></li>
+          <li><b>Fade the bottom of the head</b><span>A 20–30% mask on the lower edge makes the neck dissolve into the collar instead of ending in a hard line.</span></li>
+          <li><b>Add a contact shadow under the chin</b><span>A soft dark ellipse between head and jersey is what tells the eye the head is inside the shirt.</span></li>
+          <li><b>Transparent neckline? Go behind</b><span>If the jersey PNG has a see-through collar, switch to "Behind jersey" and let the shirt overlap the head for real.</span></li>
+          <li><b>Match the format</b><span>Use <code class="i">jersey/limited/</code> for ODI and T20, <code class="i">jersey/test/</code> for Tests. The API already returns the right one in <code class="i">rich.striker.jersey</code>.</span></li>
+          <li><b>Never let a broken image jump the layout</b><span>Keep the box size, hide a failed image with <code class="i">onerror</code>, and show initials or a silhouette behind it.</span></li>
+        </ul>
+
+        <div class="demo-col">
+          <div class="card">
+            <div class="lab-view">
+              <figure><div class="kit only-jersey" data-lab></div><figcaption>Base layer</figcaption></figure>
+              <figure><div class="kit only-head" data-lab></div><figcaption>Head layer</figcaption></figure>
+              <figure><div class="kit" data-lab></div><figcaption>Together</figcaption></figure>
+            </div>
+            <div class="ctrls">
+              <div class="grid3">
+                <label class="fld">Head key<input type="text" id="inHead" value="8RR" spellcheck="false" autocomplete="off"></label>
+                <label class="fld">Jersey key<input type="text" id="inJersey" value="2F" spellcheck="false" autocomplete="off"></label>
+                <label class="fld">Jersey type
+                  <select id="inType"><option value="limited">limited</option><option value="test">test</option></select>
+                </label>
+              </div>
+              <label class="fld">Layering
+                <select id="inMode"><option value="top">Head on top, bottom fades into collar</option><option value="behind">Head behind jersey (transparent neckline)</option></select>
+              </label>
+              <label class="fld"><span class="row">Head size <output id="oW"></output></span><input type="range" id="rW" min="20" max="70" step="1"></label>
+              <label class="fld"><span class="row">Head position <output id="oY"></output></span><input type="range" id="rY" min="-20" max="30" step="1"></label>
+              <label class="fld"><span class="row">Bottom fade <output id="oF"></output></span><input type="range" id="rF" min="0" max="60" step="1"></label>
+              <div class="presets">
+                <button class="btn" data-preset="tucked">Tucked in</button>
+                <button class="btn" data-preset="standard">Standard</button>
+                <button class="btn" data-preset="peeking">Peeking</button>
+                <label class="chk"><input type="checkbox" id="inGuides"> Show layer guides</label>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <p class="cap">CSS for the values you've set (updates as you drag)</p>
+      <pre class="code" data-copy id="labCss"></pre>
+      <p class="cap">In your app, use the URLs straight from the API</p>
+      <pre class="code" data-copy>&lt;div class="kit"&gt;
+  &lt;img class="kit-jersey" src="${match.rich.striker.jersey}" alt=""&gt;
+  &lt;div class="kit-headwrap"&gt;
+    &lt;img class="kit-head" src="${match.rich.striker.head}" alt="${match.rich.striker.name}"&gt;
+  &lt;/div&gt;
+&lt;/div&gt;
+
+// player lists: /matches/:id/squad  →  players[].head  +  teams.team1.jersey
+// same markup, same CSS, every player</pre>
+    </div>
+  </section>
+
+  <!-- ================= ROLLING DIGITS ================= -->
+  <section class="sec" id="roll">
+    <div class="wrap">
+      <h2>Digits that roll when the score moves</h2>
+      <p class="intro">Every digit lives in its own column of 0–9. When the value changes, the column slides to the new digit. Nothing is re-rendered, so 149 → 150 moves two columns and leaves the 1 alone.</p>
+
+      <div class="split">
+        <ul class="tips">
+          <li><b>Animate only the digits that changed</b><span>Compare per column, or react to the paths in the SSE <code class="i">changes</code> array. The eye follows the part that moved.</span></li>
+          <li><b>Roll up when it grows, down when it drops</b><span>Runs only climb, but required run rate and balls left fall. Direction tells the story for free.</span></li>
+          <li><b>Tabular numerals, clipped to one line</b><span>Same-width digits stop the number wobbling. Clip each column to 1em so only the current digit shows.</span></li>
+          <li><b>500–700ms, fast out, slow in</b><span>If a second update lands mid-roll, CSS just retargets the transform. No queue needed.</span></li>
+          <li><b>Overs wrap at 6, not 10</b><span>The ball digit goes 5 → 0, so give it a base-6 column. The demo uses <code class="i">roll(el, value, 6)</code>.</span></li>
+          <li><b>Pair the roll with one flash</b><span>A 900ms tint (blue four, violet six, red wicket) tells viewers why the number moved.</span></li>
+          <li><b>Don't animate the snapshot</b><span>The first paint should jump into place. Only <code class="i">update</code> events roll.</span></li>
+        </ul>
+
+        <div class="demo-col">
+          <div class="card">
+            <div class="tiles">
+              <div class="tile"><div class="v"><span class="roll" data-bind="runs"></span><span style="opacity:.4">/</span><span class="roll" data-bind="wkts"></span></div><div class="k">Score</div></div>
+              <div class="tile"><div class="v"><span class="roll" data-bind="ovI"></span>.<span class="roll" data-bind="ovB"></span></div><div class="k">Overs · ball digit is base 6</div></div>
+              <div class="tile"><div class="v"><span class="roll" data-bind="rrr"></span></div><div class="k">Required rate · rolls down as it eases</div></div>
+              <div class="tile"><div class="v"><span class="roll" data-bind="left"></span></div><div class="k">Balls left</div></div>
+            </div>
+            <div class="pad" data-pad></div>
+          </div>
+        </div>
+      </div>
+
+      <p class="cap">The exact function running the demo</p>
+      <pre class="code" data-copy id="srcRoll"></pre>
+      <p class="cap">CSS it needs</p>
+      <pre class="code" data-copy>.roll { display: inline-flex; align-items: baseline; line-height: 1; height: 1em;
+         font-variant-numeric: tabular-nums; }
+.rd   { display: inline-block; height: 1em; overflow: hidden; }       /* one-digit window */
+.rs   { display: flex; flex-direction: column; will-change: transform;
+         transition: transform .6s cubic-bezier(.22, 1, .36, 1); }    /* the sliding strip */
+.rs i { display: block; height: 1em; line-height: 1; font-style: normal; }
+
+.roll.f-four { --c: #86b9ff; animation: flash .9s ease-out; }
+@keyframes flash { 0%, 40% { color: var(--c); text-shadow: 0 0 18px var(--c); }
+                   100%    { color: inherit;  text-shadow: none; } }
+
+@media (prefers-reduced-motion: reduce) { .rs { transition: none; } }</pre>
+    </div>
+  </section>
+
+  <!-- ================= OVERS ================= -->
+  <section class="sec" id="overs">
+    <div class="wrap">
+      <h2>Showing overs so they read at a glance</h2>
+      <p class="intro">Overs are the one number people misread most. Store balls, show chips for the over in progress, and keep the history one glance away.</p>
+
+      <div class="split">
+        <ul class="tips">
+          <li><b>16.2 is 16 overs and 2 balls</b><span>It is not a decimal. 16.5 plus one ball is 17.0, not 16.6. Keep a ball count and format it for display only.</span></li>
+          <li><b>Compute rates from balls</b><span><code class="i">crr = runs / balls * 6</code> and <code class="i">rrr = (target - runs) / (total - balls) * 6</code>. The API already gives <code class="i">score.balls</code>.</span></li>
+          <li><b>Always show six slots</b><span>Empty placeholders keep the card the same height. The next slot gets a soft pulse so people know where the next ball lands.</span></li>
+          <li><b>Extras add a chip, not a slot</b><span>A wide or no-ball is not a legal delivery, so the over grows by one chip and the placeholders stay put.</span></li>
+          <li><b>Colour plus a glyph</b><span>Dot for 0, the number for runs, W for a wicket, Wd for a wide. The glyph keeps it readable for colour-blind viewers.</span></li>
+          <li><b>Hold the finished over</b><span>Leave the completed six on screen until the next ball arrives, then move it into the history. No timers needed.</span></li>
+          <li><b>One bar for the whole innings</b><span>Twenty segments, the current one filling ball by ball, powerplay overs tinted slightly.</span></li>
+        </ul>
+
+        <div class="demo-col">
+          <div class="card stack">
+            <div>
+              <div class="lbl"><span>This over</span><em>Over <span data-t="ovnum"></span> · <span class="ovbig" style="font-size:1.1rem;color:#fff"><span class="roll" data-bind="ovI"></span>.<span class="roll" data-bind="ovB"></span></span> ov</em></div>
+              <div class="chips" data-chips style="margin-top:12px"></div>
+            </div>
+            <div>
+              <div class="lbl"><span>Innings</span><em>Powerplay tinted</em></div>
+              <div class="prog" data-prog style="margin-top:12px"></div>
+            </div>
+            <div>
+              <div class="lbl"><span>Previous overs</span><em>runs</em></div>
+              <div class="hist" data-hist style="margin-top:12px"></div>
+            </div>
+            <div class="pad" data-pad style="margin-top:0"></div>
+          </div>
+        </div>
+      </div>
+
+      <p class="cap">Balls ⇄ overs, the safe way</p>
+      <pre class="code" data-copy>const fmtOvers = balls =&gt; `${Math.floor(balls / 6)}.${balls % 6}`;   // 98  → "16.2"
+const toBalls  = ov    =&gt; { const [o, b = 0] = String(ov).split('.'); return o * 6 + +b; }; // "16.2" → 98
+
+const crr = (runs, balls) =&gt; balls ? (runs / balls * 6).toFixed(2) : '0.00';
+const rrr = (target, runs, balls, total = 120) =&gt; (target - runs) / (total - balls) * 6;</pre>
+      <p class="cap">Map commentary balls to chips</p>
+      <pre class="code" data-copy>// GET /matches/:id/commentary  →  recentBalls[]
+const chipFor = b =&gt;
+  b.isWicket   ? { cls: 'cw', text: 'W' }  :
+  b.isExtra    ? { cls: 'cx', text: 'Wd' } :   // read the label from b.text for nb / lb
+  b.isBoundary ? { cls: runs(b) === 6 ? 'c6' : 'c4', text: String(runs(b)) } :
+                 { cls: runs(b) === 0 ? 'c0' : 'c1', text: runs(b) === 0 ? '•' : String(runs(b)) };</pre>
+    </div>
+  </section>
+
+  <!-- ================= WIRE IT UP ================= -->
+  <section class="sec" id="wire">
+    <div class="wrap">
+      <h2>Wire it to the stream</h2>
+      <p class="intro">Paint once from the snapshot, then let each update touch only what changed. The <code class="i">changes</code> array tells you which paths moved, so it also tells you which animation to play.</p>
+
+      <div class="tbl-wrap">
+        <table class="tbl">
+          <thead><tr><th>API field</th><th>Where it goes in the UI</th></tr></thead>
+          <tbody>
+            <tr><td>teams.team1.score.runs / wickets</td><td>The big score. Rolling digits, one flash colour per event.</td></tr>
+            <tr><td>teams.*.score.balls</td><td>Overs (floor / 6 and % 6) and both run rates.</td></tr>
+            <tr><td>rich.target · rich.rrr · rich.crr</td><td>Chase line and the two small rate chips.</td></tr>
+            <tr><td>rich.striker.head · .jersey</td><td>Kit for the batter on strike. Same for <code class="i">nonStriker</code>.</td></tr>
+            <tr><td>rich.striker.strike</td><td>Highlight the card and add the * after the name.</td></tr>
+            <tr><td>rich.bowler</td><td>Bowler line under the over chips.</td></tr>
+            <tr><td>rich.partnership</td><td>Small partnership text next to the bowler.</td></tr>
+            <tr><td>commentary.recentBalls[]</td><td>Over chips and the previous-overs history.</td></tr>
+            <tr><td>statusText · status</td><td>Subtitle, LIVE pill, and the final result line.</td></tr>
+          </tbody>
+        </table>
+      </div>
+
+      <p class="cap">Stream handler</p>
+      <pre class="code" data-copy>const es = new EventSource(`${BASE}/matches/${id}/stream`);   // add ?delay=30 to sync with a video feed
+
+es.addEventListener('snapshot', e =&gt; {
+  paint(JSON.parse(e.data).match, { instant: true });        // jump into place, no rolling
+});
+
+es.addEventListener('update', e =&gt; {
+  const { changes, match } = JSON.parse(e.data);
+  paint(match, { instant: false });
+  for (const c of changes) {
+    if (c.path === 'rich.striker.runs' &amp;&amp; c.to - c.from === 4) banner('FOUR');
+    if (c.path === 'rich.striker.runs' &amp;&amp; c.to - c.from === 6) banner('SIX');
+    if (c.path.endsWith('score.wickets'))                   banner('WICKET');
+  }
+});
+
+es.addEventListener('end', () =&gt; es.close());               // upcoming / finished matches end after one snapshot
+
+function paint(m, { instant }) {
+  const bat   = m.teams.team1.isBatting ? m.teams.team1 : m.teams.team2;
+  const balls = bat.score.balls;
+  roll(runsEl,   bat.score.runs,    10, instant);
+  roll(wktsEl,   bat.score.wickets, 10, instant);
+  roll(ovIntEl,  Math.floor(balls / 6), 10, instant);
+  roll(ovBallEl, balls % 6,             6,  instant);
+  strikerImg.src = m.rich.striker.head;                       // the browser skips the reload if the URL is unchanged
+  jerseyImg.src  = m.rich.striker.jersey;
+}</pre>
+
+      <h2 style="margin-top:64px;font-size:clamp(1.4rem,2.6vw,1.9rem)">What makes a live screen feel cheap</h2>
+      <ul class="tips two" style="margin-top:30px">
+        <li><b>Rolling on the first paint</b><span>Every number spinning when the page opens looks like a slot machine. Snapshot jumps, updates roll.</span></li>
+        <li><b>Overs as a decimal</b><span>16.5 + 0.1 = 16.6 is a bug people notice. Store balls.</span></li>
+        <li><b>Remounting components per update</b><span>Mutate the existing nodes. Rebuilding the tree restarts every animation and flickers images.</span></li>
+        <li><b>Three animations per ball</b><span>One focal moment per delivery: the banner and the number. Everything else stays still.</span></li>
+        <li><b>No fallback for images</b><span>CDN images fail sometimes. Keep the box, hide the broken image, show initials.</span></li>
+        <li><b>Ignoring the end event</b><span>Close the stream and flip the pill from LIVE to the result when <code class="i">end</code> arrives.</span></li>
+      </ul>
+    </div>
+  </section>
+</main>
+
+<footer>
+  <div class="wrap">
+    <span>LSCORExAPI · built on CREX feeds · demo data is simulated</span>
+    <span><a href="/docs">Console</a> · <a href="/documentation/api">API reference</a></span>
+  </div>
+</footer>
+
+<script>
+/* =====================================================
+   Assets
+   ===================================================== */
+const CDN = 'https://cricketvectors.akamaized.net';
+const IMG = {
+  head:   k => `${CDN}/players/org/${k}.png`,
+  jersey: (k, type = 'limited') => `${CDN}/jersey/${type}/org/${k}.png`
+};
+
+/* =====================================================
+   Rolling digits  (this exact function is printed in the docs above)
+   ===================================================== */
+function roll(el, value, base = 10, instant = false) {
+  const text = String(value);
+  const shape = text.replace(/\d/g, '#');
+  const rising = parseFloat(text) >= parseFloat(el.dataset.v || 0);
+  el.dataset.v = text;
+  const place = (col, jump) => {
+    col.strip.style.transition = jump ? 'none' : '';
+    col.strip.style.transform = `translateY(${-col.idx}em)`;
+    if (jump) { void col.strip.offsetWidth; col.strip.style.transition = ''; }
+  };
+  if (el.dataset.shape !== shape) {            // first paint, or the digit count changed
+    el.dataset.shape = shape;
+    const cells = Array.from({ length: base * 3 }, (_, i) => `<i>${i % base}</i>`).join('');
+    el.innerHTML = [...text].map(ch => /\d/.test(ch)
+      ? `<span class="rd"><span class="rs">${cells}</span></span>`
+      : `<span class="rc">${ch}</span>`).join('');
+    el._cols = [...el.querySelectorAll('.rs')].map(strip => ({ strip, idx: base, fresh: true }));
+  }
+  [...text].filter(ch => /\d/.test(ch)).forEach((ch, i) => {
+    const col = el._cols[i], d = +ch;
+    if (col.fresh || instant) {                // jump straight to the digit
+      clearTimeout(col.t);
+      col.idx = base + d; col.fresh = false; place(col, true);
+      return;
+    }
+    let delta = d - (col.idx % base);
+    if (!delta) return;                        // this column didn't change
+    if (rising && delta < 0) delta += base;    // always travel in the direction of the change
+    if (!rising && delta > 0) delta -= base;
+    col.idx += delta;
+    place(col, false);
+    clearTimeout(col.t);                       // park the strip back in the middle band afterwards
+    col.t = setTimeout(() => { col.idx = base + d; place(col, true); }, 800);
+  });
+}
+
+/* =====================================================
+   Kit: jersey + head
+   ===================================================== */
+function kitMarkup() {
+  return '<img class="kit-jersey" alt="" decoding="async"><div class="kit-headwrap"><img class="kit-head" alt="" decoding="async"></div>';
+}
+function setKit(kit, headKey, jerseyKey, type = 'limited') {
+  const jer = kit.querySelector('.kit-jersey'), head = kit.querySelector('.kit-head');
+  const js = IMG.jersey(jerseyKey, type), hs = IMG.head(headKey);
+  if (jer.getAttribute('src') !== js) { jer.classList.remove('bad'); jer.src = js; }
+  if (head.getAttribute('src') !== hs) { head.classList.remove('bad'); head.src = hs; }
+}
+document.addEventListener('error', e => {      // hide broken images, keep the box
+  if (e.target.matches && e.target.matches('.kit img, .badge img')) e.target.classList.add('bad');
+}, true);
+document.querySelectorAll('.kit').forEach(k => { if (!k.firstChild) k.innerHTML = kitMarkup(); });
+
+/* =====================================================
+   Simulation
+   ===================================================== */
+const BENCH = ['1DH', '8RR', 'EH', '1DH'];
+function freshState() {
+  return {
+    total: 120, target: 186, runs: 142, wkts: 4, balls: 98,
+    bats: [{ k: '8RR', n: 'Batter A', r: 52, b: 31 }, { k: 'EH', n: 'Batter B', r: 18, b: 13 }],
+    strike: 0, benchI: 0,
+    bowl: { n: 'Bowler X', b: 14, r: 21, w: 1 },
+    over: ['1', '4'], done: false,
+    prev: [['1', '0', '2', '1', '4', '0'], ['0', '6', '1', 'W', '0', '1'], ['2', '0', '4', '1', '1', '0']],
+    pr: 34, pb: 21, status: 'live', result: ''
+  };
+}
+let S = freshState();
+const subs = [];
+const emit = kind => subs.forEach(f => f(S, kind));
+const legal = over => over.filter(e => e !== 'Wd').length;
+
+function bowl(e) {
+  if (S.status !== 'live') return;
+  if (S.done) { S.prev.push(S.over); if (S.prev.length > 3) S.prev.shift(); S.over = []; S.done = false; }
+  let kind = 'run';
+  if (e === 'Wd') {
+    S.runs++; S.bowl.r++; S.pr++; S.over.push('Wd'); kind = 'wide';
+  } else {
+    S.balls++; S.bowl.b++; S.pb++;
+    const st = S.bats[S.strike]; st.b++;
+    if (e === 'W') {
+      S.wkts++; S.bowl.w++; S.over.push('W'); kind = 'wicket';
+      S.bats[S.strike] = { k: BENCH[S.benchI % BENCH.length], n: 'Batter ' + String.fromCharCode(67 + S.benchI), r: 0, b: 0 };
+      S.benchI++; S.pr = 0; S.pb = 0;
+    } else {
+      const n = +e;
+      S.runs += n; st.r += n; S.bowl.r += n; S.pr += n; S.over.push(e);
+      if (n === 4) kind = 'four'; else if (n === 6) kind = 'six';
+      if (n % 2) S.strike ^= 1;
+    }
+    if (legal(S.over) === 6) { S.done = true; S.strike ^= 1; }
+  }
+  if (S.runs >= S.target) { S.status = 'won'; S.result = `TMA won by ${10 - S.wkts} wickets`; }
+  else if (S.balls >= S.total || S.wkts >= 10) { S.status = 'lost'; S.result = `TMB won by ${S.target - 1 - S.runs} runs`; }
+  emit(kind);
+}
+
+/* =====================================================
+   Painting
+   ===================================================== */
+const $$ = s => document.querySelectorAll(s);
+const BASE_OF = { ovB: 6 };
+function bind(key, val, instant) {
+  $$(`[data-bind="${key}"]`).forEach(el => roll(el, val, BASE_OF[key] || 10, instant));
+}
+function flash(key, cls) {
+  $$(`[data-bind="${key}"]`).forEach(el => {
+    el.classList.remove('f-four', 'f-six', 'f-wkt'); void el.offsetWidth; el.classList.add(cls);
+  });
+}
+const chipCls = e => e === 'W' ? 'cw' : e === 'Wd' ? 'cx' : e === '4' ? 'c4' : e === '6' ? 'c6' : e === '0' ? 'c0' : 'c1';
+const chipTxt = e => e === '0' ? '•' : e;
+function overRuns(o) { return o.reduce((a, e) => a + (e === 'Wd' ? 1 : e === 'W' ? 0 : +e), 0); }
+
+function paintChips(box, over, animateLast) {
+  const n = legal(over);
+  let h = over.map((e, i) => `<span class="chip ${chipCls(e)}${animateLast && i === over.length - 1 ? ' pop' : ''}">${chipTxt(e)}</span>`).join('');
+  for (let i = n; i < 6; i++) h += `<span class="chip empty${i === n ? ' next' : ''}"></span>`;
+  box.innerHTML = h;
+}
+
+let bannerTimer;
+function showBanner(kind) {
+  const text = { four: 'FOUR', six: 'SIX', wicket: 'WICKET', wide: 'WIDE' }[kind];
+  if (!text) return;
+  $$('[data-banner]').forEach(b => {
+    b.className = 'banner'; void b.offsetWidth;
+    b.textContent = text; b.classList.add(kind, 'show');
+    b.parentElement.classList.add('has-banner');
+  });
+  clearTimeout(bannerTimer);
+  bannerTimer = setTimeout(() => $$('[data-sc]').forEach(s => s.classList.remove('has-banner')), 1000);
+}
+
+function paint(s, kind) {
+  const first = kind === 'init' || kind === 'reset';
+  const left = s.total - s.balls;
+  bind('runs', s.runs, first); bind('wkts', s.wkts, first);
+  bind('ovI', Math.floor(s.balls / 6), first); bind('ovB', s.balls % 6, first);
+  bind('need', Math.max(0, s.target - s.runs), first); bind('left', left, first);
+  bind('crr', (s.balls ? s.runs / s.balls * 6 : 0).toFixed(2), first);
+  bind('rrr', (left > 0 && s.runs < s.target ? (s.target - s.runs) / left * 6 : 0).toFixed(2), first);
+
+  if (!first) {
+    if (kind === 'four') flash('runs', 'f-four');
+    if (kind === 'six') flash('runs', 'f-six');
+    if (kind === 'wicket') flash('wkts', 'f-wkt');
+    showBanner(kind);
+  }
+
+  $$('[data-bat]').forEach(el => {
+    const i = +el.dataset.bat, b = s.bats[i];
+    el.querySelector('.n').textContent = b.n;
+    roll(el.querySelector('[data-f="r"]'), b.r, 10, first);
+    roll(el.querySelector('[data-f="b"]'), b.b, 10, first);
+    el.querySelector('[data-f="sr"]').textContent = b.b ? Math.round(b.r / b.b * 100) : 0;
+    el.classList.toggle('on', s.strike === i);
+    setKit(el.querySelector('.kit'), b.k, '2F');
+  });
+
+  const cur = (s.balls - legal(s.over)) / 6 + 1;
+  $$('[data-t="ovnum"]').forEach(e => e.textContent = cur);
+  $$('[data-t="ovruns"]').forEach(e => e.textContent = overRuns(s.over));
+  $$('[data-t="bowl"]').forEach(e => e.textContent = `${s.bowl.n} · ${Math.floor(s.bowl.b / 6)}.${s.bowl.b % 6}-${s.bowl.r}-${s.bowl.w}`);
+  $$('[data-t="pship"]').forEach(e => e.textContent = `P'ship ${s.pr} (${s.pb})`);
+  $$('[data-chips]').forEach(box => paintChips(box, s.over, !first && kind !== 'reset'));
+
+  $$('[data-prog]').forEach(box => {
+    const n = s.total / 6, full = Math.floor(s.balls / 6), part = (s.balls % 6) / 6 * 100;
+    box.innerHTML = Array.from({ length: n }, (_, i) =>
+      `<i class="${i < 6 ? 'pp ' : ''}${i < full ? 'done' : ''}"${i === full ? ` style="--p:${part}%"` : ''}></i>`).join('');
+  });
+  $$('[data-hist]').forEach(box => {
+    box.innerHTML = s.prev.map((o, i) => {
+      const n = cur - (s.prev.length - i);
+      const chips = o.map(e => `<span class="chip ${chipCls(e)}">${chipTxt(e)}</span>`).join('');
+      return `<div class="hrow"><span>Over ${n}</span><span class="chips mini">${chips}</span><b>${overRuns(o)}</b></div>`;
+    }).reverse().join('');
+  });
+
+  const live = s.status === 'live';
+  $$('[data-b]').forEach(b => b.disabled = !live);
+  $$('[data-chase]').forEach(e => e.hidden = !live);
+  $$('[data-result]').forEach(e => { e.hidden = live; e.textContent = s.result; });
+  if (!live) setAuto(false);
+}
+subs.push(paint);
+
+/* =====================================================
+   Pads (ball buttons)
+   ===================================================== */
+let autoTimer = null, touched = false;
+const PICK = ['0', '0', '1', '1', '1', '2', '4', '4', '6', 'W', 'Wd'];
+function setAuto(on) {
+  clearInterval(autoTimer); autoTimer = null;
+  if (on) autoTimer = setInterval(() => bowl(PICK[Math.floor(Math.random() * PICK.length)]), 1700);
+  $$('[data-auto]').forEach(b => b.setAttribute('aria-pressed', on));
+}
+$$('[data-pad]').forEach(p => {
+  p.innerHTML = ['0', '1', '2', '4', '6', 'W', 'Wd'].map(b => `<button data-b="${b}" aria-label="Bowl ${b === '0' ? 'a dot ball' : b}">${chipTxt(b)}</button>`).join('') +
+    '<button class="ghost" data-auto aria-pressed="false">Auto-play</button><button class="ghost" data-reset>Reset</button>';
+  p.addEventListener('click', e => {
+    const t = e.target.closest('button'); if (!t) return;
+    touched = true;
+    if (t.dataset.b) bowl(t.dataset.b);
+    else if (t.hasAttribute('data-auto')) setAuto(!autoTimer);
+    else if (t.hasAttribute('data-reset')) { setAuto(false); S = freshState(); emit('reset'); }
+  });
+});
+
+/* =====================================================
+   Kit lab
+   ===================================================== */
+const root = document.documentElement;
+const PRESETS = { tucked: [44, 8, 34], standard: [40, 2, 26], peeking: [36, -4, 18] };
+const rW = document.getElementById('rW'), rY = document.getElementById('rY'), rF = document.getElementById('rF');
+const inHead = document.getElementById('inHead'), inJersey = document.getElementById('inJersey');
+const inType = document.getElementById('inType'), inMode = document.getElementById('inMode');
+function labCss() {
+  const w = rW.value, y = rY.value, f = rF.value, behind = inMode.value === 'behind';
+  return `.kit { position: relative; aspect-ratio: 1 / 1.05; }
+
+.kit-jersey { position: absolute; left: 0; right: 0; bottom: 0;
+              width: 100%; height: 90%; object-fit: contain; z-index: 2; }
+
+.kit-headwrap { position: absolute; left: 50%; top: ${y}%; width: ${w}%;
+                transform: translateX(-50%); z-index: ${behind ? 1 : 3}; }
+` + (behind
+? `.kit-head { display: block; width: 100%; }   /* the jersey collar overlaps the head */`
+: `.kit-head { display: block; width: 100%;
+  -webkit-mask-image: linear-gradient(to bottom, #000 ${100 - f}%, transparent);
+          mask-image: linear-gradient(to bottom, #000 ${100 - f}%, transparent); }
+
+/* contact shadow under the chin */
+.kit-headwrap::after {
+  content: ''; position: absolute; left: 6%; right: 6%; bottom: -4%; height: 18%;
+  background: radial-gradient(closest-side, rgba(0,0,0,.55), transparent);
+  filter: blur(3px); z-index: -1; }`);
+}
+function applyLab() {
+  root.style.setProperty('--head-w', rW.value + '%');
+  root.style.setProperty('--head-y', rY.value + '%');
+  root.style.setProperty('--fade', rF.value + '%');
+  root.dataset.kit = inMode.value;
+  document.getElementById('oW').textContent = rW.value + '%';
+  document.getElementById('oY').textContent = rY.value + '%';
+  document.getElementById('oF').textContent = rF.value + '%';
+  document.getElementById('labCss').textContent = labCss();
+  addCopy(document.getElementById('labCss'));
+}
+function loadLabKits() {
+  const h = inHead.value.trim() || '8RR', j = inJersey.value.trim() || '2F';
+  $$('[data-lab]').forEach(k => { if (!k.firstChild) k.innerHTML = kitMarkup(); setKit(k, h, j, inType.value); });
+}
+[rW, rY, rF, inMode].forEach(el => el.addEventListener('input', applyLab));
+[inHead, inJersey, inType].forEach(el => el.addEventListener('input', loadLabKits));
+document.getElementById('inGuides').addEventListener('change', e => root.classList.toggle('guides', e.target.checked));
+$$('[data-preset]').forEach(b => b.addEventListener('click', () => {
+  [rW.value, rY.value, rF.value] = PRESETS[b.dataset.preset]; applyLab();
+}));
+[rW.value, rY.value, rF.value] = PRESETS.standard;
+
+/* =====================================================
+   Code blocks + copy
+   ===================================================== */
+document.getElementById('srcRoll').textContent = roll.toString();
+function addCopy(pre) {
+  const old = pre.querySelector('.cp'); if (old) old.remove();
+  const b = document.createElement('button');
+  b.className = 'cp'; b.type = 'button'; b.textContent = 'Copy';
+  b.addEventListener('click', async () => {
+    const txt = [...pre.childNodes].filter(n => n !== b).map(n => n.textContent).join('');
+    try { await navigator.clipboard.writeText(txt); b.textContent = 'Copied'; }
+    catch (_) { b.textContent = 'Press Ctrl+C'; }
+    setTimeout(() => b.textContent = 'Copy', 1400);
+  });
+  pre.appendChild(b);
+}
+$$('pre[data-copy]').forEach(pre => { if (pre.id !== 'labCss') addCopy(pre); });
+
+/* =====================================================
+   Boot
+   ===================================================== */
+applyLab();
+loadLabKits();
+emit('init');
+if (!matchMedia('(prefers-reduced-motion: reduce)').matches) {
+  [['4', 1100], ['1', 2300], ['6', 3500]].forEach(([b, t]) => setTimeout(() => { if (!touched) bowl(b); }, t));
+}
+</script>
+</body>
+</html>

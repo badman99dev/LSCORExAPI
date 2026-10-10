@@ -65,6 +65,10 @@ Find a fixture two ways — by **two team names** or by a **series name** — al
 is returned as a best-effort fallback, flagged with `timeMatch: false` and
 `timeMatchType: "closest"`.
 
+**Series-mode cache (1 day):** series searches and their fixture lists are cached for
+**24 hours**, so repeated lookups are near-instant. Inspect or clear it with
+`GET /find-match/cache` and `POST /find-match/cache/clear`.
+
 ```bash
 # Team mode — startTime as epoch milliseconds since 1970 (required)
 GET /find-match?team1=India&team2=Australia&startTime=1822896000000

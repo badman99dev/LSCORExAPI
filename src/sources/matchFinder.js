@@ -19,6 +19,63 @@
 import { searchCricket } from './crex.js';
 import { getTeamMatches, getSeriesMatches } from './crexSeriesTeam.js';
 
+// ---------------------------------------------------------------------------
+// Series-mode cache (1 day TTL). Series + their fixtures rarely change, so we
+// cache both the search hits and the per-series fixture lists for 24h.
+// ---------------------------------------------------------------------------
+const SERIES_CACHE_TTL_MS = 24 * 60 * 60 * 1000; // 1 day
+const seriesSearchCache = new Map(); // query -> { at, data }
+const seriesMatchesCache = new Map(); // seriesKey -> { at, data }
+
+function cacheGet(store, key) {
+  const hit = store.get(key);
+  if (hit && Date.now() - hit.at < SERIES_CACHE_TTL_MS) return hit.data;
+  if (hit) store.delete(key);
+  return undefined;
+}
+
+function cacheSet(store, key, data) {
+  store.set(key, { at: Date.now(), data });
+  return data;
+}
+
+export function clearSeriesCache() {
+  seriesSearchCache.clear();
+  seriesMatchesCache.clear();
+}
+
+export function getSeriesCacheStats() {
+  return {
+    ttlMs: SERIES_CACHE_TTL_MS,
+    searchEntries: seriesSearchCache.size,
+    matchesEntries: seriesMatchesCache.size,
+    searchKeys: [...seriesSearchCache.keys()],
+    matchesKeys: [...seriesMatchesCache.keys()],
+  };
+}
+
+async function cachedSearchCricket(query) {
+  const key = String(query || '').trim().toLowerCase();
+  const cached = cacheGet(seriesSearchCache, key);
+  if (cached) return cached;
+  const data = await searchCricket(query);
+  return cacheSet(seriesSearchCache, key, data);
+}
+
+async function cachedSeriesMatches(seriesKey) {
+  const key = String(seriesKey || '');
+  const cached = cacheGet(seriesMatchesCache, key);
+  if (cached) return cached;
+  let matches = [];
+  try {
+    const data = await getSeriesMatches(key);
+    matches = (data && data.matches) ? data.matches.map((m) => ({ ...m })) : [];
+  } catch {
+    matches = [];
+  }
+  return cacheSet(seriesMatchesCache, key, matches);
+}
+
 function flattenMatches(tm) {
   const out = [];
   if (!tm) return out;
@@ -155,7 +212,7 @@ function selectByTime(list, start, toleranceMs) {
  */
 async function findMatchInSeries({ series, startTime, toleranceMs, team1, team2 }) {
   const start = startTime;
-  const results = await searchCricket(series || '');
+  const results = await cachedSearchCricket(series || '');
   // CREX tags some tours/series as "Series" (t=5) and others as "Other" (t=1),
   // so we treat both as series candidates and validate them by fetching fixtures.
   const seriesHits = results.filter((r) => r.category === 'Series' || r.category === 'Other');
@@ -178,13 +235,7 @@ async function findMatchInSeries({ series, startTime, toleranceMs, team1, team2 
   const loadSeries = async (hit) => {
     const key = hit.slug || hit.id;
     if (probeCache.has(key)) return probeCache.get(key);
-    let matches = [];
-    try {
-      const data = await getSeriesMatches(key);
-      matches = (data && data.matches) ? data.matches.map((m) => ({ ...m })) : [];
-    } catch {
-      matches = [];
-    }
+    const matches = await cachedSeriesMatches(key);
     probeCache.set(key, matches);
     return matches;
   };

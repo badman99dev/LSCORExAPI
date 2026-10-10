@@ -825,6 +825,10 @@ POST /find-match
 }
 </pre>
           <div class="note">Check <code>timeMatchType</code>: <code>closest</code> means no fixture fell inside the time window, so the nearest one was returned as a best-effort guess — always verify <code>timeDeltaMs</code>. When there is no common fixture at all, <code>matched</code> is <code>false</code> with a <code>reason</code>.</div>
+          <div class="block-title">Series-mode cache (1 day)</div>
+          <div class="note">Series searches and their fixture lists are cached for <strong>24&nbsp;hours</strong> (series &amp; fixtures rarely change), so repeated queries are ~instant. Inspect or clear it any time:</div>
+          <pre>GET  /find-match/cache          <span class="c"># { success, cache: { ttlMs, searchEntries, matchesEntries, searchKeys, matchesKeys } }</span>
+POST /find-match/cache/clear    <span class="c"># wipes the 24h cache</span></pre>
         </div>
       </section>
 

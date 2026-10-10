@@ -22,6 +22,7 @@ import {
   getTeamMatches,
 } from "../sources/crexSeriesTeam.js";
 import { findMatch } from "../sources/matchFinder.js";
+import { getSeriesCacheStats, clearSeriesCache } from "../sources/matchFinder.js";
 import { broadcaster } from "../core/broadcaster.js";
 import path from "path";
 import { fileURLToPath } from "url";
@@ -372,6 +373,15 @@ router.get("/match-finder", handleFindMatch);
 router.post("/find-match", handleFindMatch);
 router.get("/api/find-match", handleFindMatch);
 router.post("/api/find-match", handleFindMatch);
+
+// Series-mode cache (1 day TTL) — inspect or clear
+router.get("/find-match/cache", (req, res) => {
+  res.json({ success: true, cache: getSeriesCacheStats() });
+});
+router.post("/find-match/cache/clear", (req, res) => {
+  clearSeriesCache();
+  res.json({ success: true, cleared: true, cache: getSeriesCacheStats() });
+});
 
 // ==========================================
 // SERIES ROUTES (Points Table, Squads, Matches)
